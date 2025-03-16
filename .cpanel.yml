@@ -1,0 +1,8 @@
+deployment:
+  tasks:
+    - echo "Starting frontend deployment..."
+    - cd $HOME/frontend
+    - git pull origin main
+    - npm install
+    - npm run build
+    - cp -r dist/* /home/editcezo/public_html/crm.editedgemultimedia.com
