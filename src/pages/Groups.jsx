@@ -1,38 +1,36 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { MoreVertical } from "lucide-react"; // 3-dot menu icon
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Settings, Trash,Plus } from "lucide-react";
+import { Trash, Plus, UserPlus } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const API_BASE_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
 
-    
 const Groups = () => {
   const [groups, setGroups] = useState([]);
   const [groupName, setGroupName] = useState("");
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [members, setMembers] = useState([]);
   const [leads, setLeads] = useState([]);
   const [contacts, setContacts] = useState([]);
-  const [selectedMember, setSelectedMember] = useState("");
   const [memberType, setMemberType] = useState("lead");
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
+  const [isViewMembersDialogOpen, setIsViewMembersDialogOpen] = useState(false);
+  const [selectedGroupForView, setSelectedGroupForView] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showRecent, setShowRecent] = useState(false);
-  const [selectedMembers, setSelectedMembers] = useState([]); // ✅ New State
-const [selectAll, setSelectAll] = useState(false); // ✅ Select All Checkbox State
-const [loading, setLoading] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchGroups();
@@ -43,10 +41,7 @@ const [loading, setLoading] = useState(false);
     try {
       const response = await fetch(`${API_BASE_URL}/api/groups`, { credentials: "include" });
       const data = await response.json();
-
-      if (Array.isArray(data)) {
-        setGroups(data);
-      }
+      if (Array.isArray(data)) setGroups(data);
     } catch (error) {
       console.error("❌ Error fetching groups:", error);
     }
@@ -58,10 +53,8 @@ const [loading, setLoading] = useState(false);
         fetch(`${API_BASE_URL}/api/leads`, { credentials: "include" }),
         fetch(`${API_BASE_URL}/api/contacts`, { credentials: "include" }),
       ]);
-
       const leadsData = await leadsRes.json();
       const contactsData = await contactsRes.json();
-
       setLeads(Array.isArray(leadsData.leads) ? leadsData.leads : leadsData);
       setContacts(Array.isArray(contactsData.contacts) ? contactsData.contacts : contactsData);
     } catch (error) {
@@ -74,7 +67,6 @@ const [loading, setLoading] = useState(false);
       toast({ title: "Error", description: "Group name cannot be empty", variant: "destructive" });
       return;
     }
-
     try {
       const response = await fetch(`${API_BASE_URL}/api/groups/create`, {
         method: "POST",
@@ -82,7 +74,6 @@ const [loading, setLoading] = useState(false);
         credentials: "include",
         body: JSON.stringify({ name: groupName }),
       });
-
       const data = await response.json();
       if (response.ok) {
         setGroups((prevGroups) => [...prevGroups, data.group]);
@@ -97,11 +88,8 @@ const [loading, setLoading] = useState(false);
     }
   };
 
-  
-
   const handleRemoveMember = async (groupId, memberId, type) => {
     if (!groupId || !memberId || !type) return;
-  
     try {
       const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/remove-member`, {
         method: "POST",
@@ -109,12 +97,9 @@ const [loading, setLoading] = useState(false);
         credentials: "include",
         body: JSON.stringify({ memberId, type }),
       });
-  
       const data = await response.json();
       if (response.ok) {
         toast({ title: "Success", description: "Member removed successfully!" });
-  
-        // ✅ Update UI: Remove member from the group
         setGroups((prevGroups) =>
           prevGroups.map((group) =>
             group._id === groupId
@@ -122,8 +107,6 @@ const [loading, setLoading] = useState(false);
               : group
           )
         );
-  
-        // ✅ Remove from disabled members so it can be added again
         setSelectedMembers((prev) => prev.filter((id) => id !== memberId));
       } else {
         toast({ title: "Error", description: data.error, variant: "destructive" });
@@ -133,24 +116,17 @@ const [loading, setLoading] = useState(false);
       toast({ title: "Error", description: "Failed to remove member!", variant: "destructive" });
     }
   };
-  
-  
+
   const handleDeleteGroup = async (groupId) => {
-    if (!groupId) return;
-  
-    if (!confirm("Are you sure you want to delete this group?")) return; // Confirmation prompt
-  
+    if (!groupId || !confirm("Are you sure you want to delete this group?")) return;
     try {
       const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}`, {
         method: "DELETE",
         credentials: "include",
       });
-  
       const data = await response.json();
       if (response.ok) {
         toast({ title: "Success", description: "Group deleted successfully!" });
-  
-        // Update UI: Remove the group from local state
         setGroups((prevGroups) => prevGroups.filter((group) => group._id !== groupId));
       } else {
         toast({ title: "Error", description: data.error, variant: "destructive" });
@@ -166,9 +142,6 @@ const [loading, setLoading] = useState(false);
       toast({ title: "Error", description: "Please select a group and members", variant: "destructive" });
       return;
     }
-  
-    console.log("📌 Sending Members for Bulk Addition:", selectedMembers);
-  
     try {
       const response = await fetch(`${API_BASE_URL}/api/groups/${selectedGroup}/add-members`, {
         method: "POST",
@@ -176,31 +149,28 @@ const [loading, setLoading] = useState(false);
         credentials: "include",
         body: JSON.stringify({ memberIds: selectedMembers, type: memberType }),
       });
-  
       const data = await response.json();
       if (response.ok) {
         toast({ title: "Success", description: "Members added successfully!" });
-  
-        // ✅ Update UI immediately
         setGroups((prevGroups) =>
           prevGroups.map((group) =>
             group._id === selectedGroup
               ? {
                   ...group,
-                  members: [...group.members, ...data.addedMembers.map((m) => ({
-                    memberId: m.memberId,
-                    name: m.name,
-                    email: m.email,
-                    type: memberType
-                  }))],
+                  members: [
+                    ...group.members,
+                    ...data.addedMembers.map((m) => ({
+                      memberId: m.memberId,
+                      name: m.name,
+                      email: m.email,
+                      type: memberType,
+                    })),
+                  ],
                 }
               : group
           )
         );
-  
-        // ✅ Clear selected checkboxes after adding members
         setSelectedMembers([]);
-  
         setIsAddMemberDialogOpen(false);
       } else {
         toast({ title: "Error", description: data.error, variant: "destructive" });
@@ -210,205 +180,271 @@ const [loading, setLoading] = useState(false);
       toast({ title: "Error", description: "Something went wrong!", variant: "destructive" });
     }
   };
-  
-  
 
   const filteredMembers = (memberType === "lead" ? leads : contacts)
-  .filter((member) => {
-    // ✅ Search Query Filter
-    return searchQuery === "" || member.name.toLowerCase().includes(searchQuery.toLowerCase());
-  })
-  .filter((member) => {
-    if (!showRecent) return true; // ✅ If "Show Recently Added" is OFF, return all
+    .filter((member) =>
+      searchQuery === "" || member.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .filter((member) => {
+      if (!showRecent) return true;
+      if (!member.createdAt) return false;
+      const memberDate = new Date(member.createdAt);
+      const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      return memberDate >= cutoffDate;
+    });
 
-    if (!member.createdAt) {
-      console.warn(`⚠️ Missing createdAt for:`, member);
-      return false;
-    }
-
-    const memberDate = new Date(member.createdAt);
-    const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // ✅ 24 hours ago
-
-    // ✅ Debugging log
-    
-
-    return memberDate >= cutoffDate;
-  });
-
-
-
-
+  const handleViewMembers = (group) => {
+    setSelectedGroupForView(group);
+    setIsViewMembersDialogOpen(true);
+  };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Manage Groups</h1>
-        <Button onClick={() => setIsGroupDialogOpen(true)} className="bg-brand-black hover:bg-brand-neon text-white">
-          + Create Group
+    <div className="p-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Groups Management</h1>
+        <Button
+          onClick={() => setIsGroupDialogOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+          aria-label="Create a new group"
+        >
+          <Plus className="h-5 w-5" /> New Group
         </Button>
       </div>
 
-      {/* Group List */}
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
-  {groups.map((group) => (
-    <Card
-      key={group._id}
-      className="p-6 w-full shadow-md rounded-lg bg-white dark:bg-gray-800 h-auto min-h-[500px]" // Increased min height
-    >
-      <CardContent className="flex flex-col justify-between h-full">
-        {/* Group Name + Actions */}
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">{group.name}</h2>
-
-          {/* 3-dots dropdown menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreVertical className="h-5 w-5 text-gray-500" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => {
-                  console.log("🟢 Setting Selected Group:", group._id);
-                  setSelectedGroup(group._id);
-                  setIsAddMemberDialogOpen(true);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Member
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-red-600 hover:bg-red-100 dark:hover:bg-red-700"
-                onClick={() => handleDeleteGroup(group._id)}
-              >
-                <Trash className="mr-2 h-4 w-4" /> Delete Group
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Member List (Scrollable) */}
-        <div className="mt-4 flex-1">
-          {group.members.length > 0 ? (
-            <div className="max-h-[300px] overflow-y-auto border rounded-md p-4 bg-gray-50 dark:bg-gray-900">
-              <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">Members:</h3>
-              <ul className="space-y-3">
-                {group.members.map((member, index) => (
-                  <li
-                    key={member.memberId || member.email || index}
-                    className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-400"
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-medium">{member.name}</span>
-                      <span className="text-xs text-gray-500">{member.email}</span>
-                    </div>
-                    <button
-                      className="text-red-500 text-xs hover:underline px-2 py-1"
-                      onClick={() => handleRemoveMember(group._id, member.memberId, member.type)}
+      {/* Group Cards */}
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        {groups.map((group) => (
+          <Card
+            key={group._id}
+            className="shadow-lg rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-pointer"
+            onClick={() => handleViewMembers(group)}
+          >
+            <CardHeader className="flex flex-row justify-between items-center border-b p-4">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-white truncate">{group.name}</h2>
+              <div className="flex gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent card click
+                          setSelectedGroup(group._id);
+                          setIsAddMemberDialogOpen(true);
+                        }}
+                        aria-label={`Add members to ${group.name}`}
+                      >
+                        <UserPlus className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Add Members</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent card click
+                          handleDeleteGroup(group._id);
+                        }}
+                        aria-label={`Delete ${group.name}`}
+                      >
+                        <Trash className="h-5 w-5 text-red-500" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Delete Group</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4">
+              {group.members.length > 0 ? (
+                <ul className="space-y-2">
+                  {group.members.slice(0, 3).map((member, index) => (
+                    <li
+                      key={member.memberId || member.email || index}
+                      className="text-sm text-gray-600 dark:text-gray-400"
                     >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 mt-4">No members yet.</p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  ))}
-</div>
+                      {member.name} ({member.email})
+                    </li>
+                  ))}
+                  {group.members.length > 3 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                      +{group.members.length - 3} more...
+                    </p>
+                  )}
+                </ul>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400 text-center py-2">No members in this group.</p>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-
-
-     
-      {/* Create Group Dialog */}
-      <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
-        <DialogContent className="p-6 max-w-2xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg">
+      {/* View All Members Dialog */}
+      <Dialog open={isViewMembersDialogOpen} onOpenChange={setIsViewMembersDialogOpen}>
+        <DialogContent className="p-6 max-w-3xl bg-white dark:bg-gray-900 rounded-lg shadow-lg">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">
-              Create a New Group
+            <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+              Members of {selectedGroupForView?.name}
             </DialogTitle>
           </DialogHeader>
-          <Label className="text-gray-700 dark:text-gray-300">Group Name</Label>
-          <Input
-            value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
-            placeholder="Enter group name"
-            className="mt-2"
-          />
-          <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleCreateGroup}>
-            Create
-          </Button>
+          {selectedGroupForView && selectedGroupForView.members.length > 0 ? (
+            <div className="max-h-96 overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-gray-600 dark:text-gray-300">Name</TableHead>
+                    <TableHead className="text-gray-600 dark:text-gray-300">Email</TableHead>
+                    <TableHead className="text-gray-600 dark:text-gray-300">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedGroupForView.members.map((member, index) => (
+                    <TableRow key={member.memberId || member.email || index}>
+                      <TableCell className="font-medium text-gray-800 dark:text-gray-200">
+                        {member.name}
+                      </TableCell>
+                      <TableCell className="text-gray-600 dark:text-gray-400">{member.email}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleRemoveMember(selectedGroupForView._id, member.memberId, member.type)
+                          }
+                          className="text-red-500 hover:text-red-700"
+                          aria-label={`Remove ${member.name} from ${selectedGroupForView.name}`}
+                        >
+                          Remove
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400 text-center py-4">No members in this group.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Group Dialog */}
+      <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
+        <DialogContent className="p-6 max-w-md bg-white dark:bg-gray-900 rounded-lg shadow-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+              Create New Group
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="groupName" className="text-gray-700 dark:text-gray-300">
+                Group Name
+              </Label>
+              <Input
+                id="groupName"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="Enter group name"
+                className="mt-1"
+                aria-required="true"
+              />
+            </div>
+            <Button
+              onClick={handleCreateGroup}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={!groupName.trim()}
+            >
+              Create Group
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Add Member Dialog */}
       <Dialog open={isAddMemberDialogOpen} onOpenChange={setIsAddMemberDialogOpen}>
-        <DialogContent className="p-6 max-w-2xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg">
+        <DialogContent className="p-6 max-w-lg bg-white dark:bg-gray-900 rounded-lg shadow-lg">
           <DialogHeader>
-            <DialogTitle>Add Members to Group</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+              Add Members to Group
+            </DialogTitle>
           </DialogHeader>
-          <Label className="mt-4 text-gray-700 dark:text-gray-300">Select Member Type</Label>
-<select
-  value={memberType}
-  onChange={(e) => setMemberType(e.target.value)}
-  className="mt-2 border rounded-md p-2 w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white"
->
-  <option value="lead">Lead</option>
-  <option value="contact">Contact</option>
-</select>
-          <Label>Search Members</Label>
-          <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name" />
-
-          <div className="flex items-center justify-between mt-2">
-            <Label>Show Recently Added</Label>
-            <Switch checked={showRecent} onCheckedChange={setShowRecent} />
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="memberType" className="text-gray-700 dark:text-gray-300">
+                Member Type
+              </Label>
+              <select
+                id="memberType"
+                value={memberType}
+                onChange={(e) => setMemberType(e.target.value)}
+                className="mt-1 w-full border rounded-md p-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white"
+              >
+                <option value="lead">Lead</option>
+                <option value="contact">Contact</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="searchMembers" className="text-gray-700 dark:text-gray-300">
+                Search Members
+              </Label>
+              <Input
+                id="searchMembers"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name"
+                className="mt-1"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="showRecent" className="text-gray-700 dark:text-gray-300">
+                Show Recently Added
+              </Label>
+              <Switch id="showRecent" checked={showRecent} onCheckedChange={setShowRecent} />
+            </div>
+            <div className="max-h-48 overflow-y-auto border rounded-md p-2">
+              {filteredMembers.map((member) => {
+                const isAlreadyInGroup = groups
+                  .find((g) => g._id === selectedGroup)?.members
+                  .some((m) => m.memberId === member._id);
+                return (
+                  <div key={member._id} className="flex items-center py-1">
+                    <Checkbox
+                      id={`member-${member._id}`}
+                      checked={selectedMembers.includes(member._id)}
+                      onCheckedChange={(checked) =>
+                        setSelectedMembers((prev) =>
+                          checked ? [...prev, member._id] : prev.filter((id) => id !== member._id)
+                        )
+                      }
+                      disabled={isAlreadyInGroup}
+                    />
+                    <Label
+                      htmlFor={`member-${member._id}`}
+                      className={`ml-2 ${isAlreadyInGroup ? "text-gray-400" : "text-gray-700 dark:text-gray-300"}`}
+                    >
+                      {member.name} ({member.email})
+                    </Label>
+                  </div>
+                );
+              })}
+            </div>
+            <Button
+              onClick={handleBulkAddMembers}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={selectedMembers.length === 0}
+            >
+              Add Selected Members
+            </Button>
           </div>
-
-          {/* Select All Checkbox */}
-<div className="mt-2 max-h-48 overflow-y-auto">
-<div className="flex items-center mb-2">
-  <Checkbox
-    checked={selectedMembers.length === filteredMembers.length}
-    onCheckedChange={(checked) =>
-      setSelectedMembers(checked ? filteredMembers.map((m) => m._id) : [])
-    }
-  />
-   <Label className="ml-2">Select All</Label>
-   </div>
-  {filteredMembers.map((member) => {
-    const isAlreadyInGroup = groups
-      .find((g) => g._id === selectedGroup)?.members
-      .some((m) => m.memberId === member._id);
-
-    return (
-      <div key={member._id} className="flex items-center mt-2">
-        <Checkbox
-          checked={selectedMembers.includes(member._id)}
-          onCheckedChange={(checked) =>
-            setSelectedMembers((prev) =>
-              checked ? [...prev, member._id] : prev.filter((id) => id !== member._id)
-            )
-          }
-          disabled={isAlreadyInGroup} // ✅ Disable if already in group
-        />
-        <span className={`ml-2 ${isAlreadyInGroup ? "text-gray-400" : ""}`}>
-          {member.name} ({member.email})
-        </span>
-      </div>
-    );
-  })}
-</div>
-
-
-          <Button className="mt-4" onClick={handleBulkAddMembers}>Add Members</Button>
         </DialogContent>
       </Dialog>
-
-
     </div>
   );
 };

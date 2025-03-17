@@ -7,6 +7,8 @@ import DashboardCard from "@/components/dashboard/DashboardCard";
 import { Progress } from "@/components/ui/progress";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Chart } from "react-google-charts";
+import { useCallback } from "react";
+import { useMemo } from "react";
 
 const API_BASE_URL =
   window.location.hostname === "localhost"
@@ -30,91 +32,84 @@ const Dashboard = () => {
   const [userName, setUserName] = useState("User");
   const navigate = useNavigate(); // Added for redirecting
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const userUrl = `${API_BASE_URL}/api/auth/me`;
-        console.log("Dashboard fetching user from:", userUrl); // Debug log
-        const userRes = await fetch(userUrl, {
-          credentials: "include",
-        });
-        console.log("Dashboard user response status:", userRes.status); // Debug log
-        console.log("Dashboard user response URL:", userRes.url); // Debug log
-        if (userRes.status === 401) {
-          console.log("Dashboard: Unauthorized, navigating to /login"); // Debug log
-          navigate("/login");
-          return;
-        }
-        if (!userRes.ok) {
-          throw new Error(`Failed to fetch user: ${userRes.status}`);
-        }
-        const userData = await userRes.json();
-        console.log("Dashboard user data:", userData); // Debug log
-        setUserName(userData.user.name || "User");
-
-        const leadsRes = await fetch(`${API_BASE_URL}/api/dashboard/leads/total`, { credentials: "include" });
-        const leadsData = await leadsRes.json();
-        const contactsRes = await fetch(`${API_BASE_URL}/api/dashboard/contacts/total`, { credentials: "include" });
-        const contactsData = await contactsRes.json();
-        const dealsRes = await fetch(`${API_BASE_URL}/api/dashboard/deals/open`, { credentials: "include" });
-        const dealsData = await dealsRes.json();
-
-        const lastMonthRes = await fetch(`${API_BASE_URL}/api/dashboard/stats/lastMonth`, { credentials: "include" });
-        const lastMonthData = await lastMonthRes.json();
-
-        setStats({
-          totalLeads: leadsData.totalLeads,
-          totalContacts: contactsData.totalContacts,
-          openDeals: dealsData.openDeals,
-          revenue: dealsData.totalRevenue,
-          lastMonth: lastMonthData,
-        });
-
-        const pipelineRes = await fetch(`${API_BASE_URL}/api/dashboard/deals/pipeline`, { credentials: "include" });
-        const pipelineData = await pipelineRes.json();
-        setPipeline(
-          pipelineData.map((stage) => ({
-            name: stage._id,
-            count: stage.count,
-            color: {
-              "Lead In": "bg-blue-500",
-              Qualification: "bg-yellow-500",
-              Proposal: "bg-orange-500",
-              Negotiation: "bg-violet-500",
-              "Closed Won": "bg-emerald-500",
-            }[stage._id],
-          }))
-        );
-
-        const leadsRecentRes = await fetch(`${API_BASE_URL}/api/dashboard/leads/recent`, { credentials: "include" });
-        const leadsRecentData = await leadsRecentRes.json();
-        setRecentLeads(leadsRecentData);
-
-        const perfRes = await fetch(`${API_BASE_URL}/api/dashboard/analytics/performance`, { credentials: "include" });
-        const perfData = await perfRes.json();
-        if (Array.isArray(perfData) && perfData.length > 0) {
-          setPerformance(perfData);
-        }
-
-        const emailsRes = await fetch(`${API_BASE_URL}/api/dashboard/emails/recent`, { credentials: "include" });
-        const emailsData = await emailsRes.json();
-        setRecentEmails(emailsData);
-
-        const messagesRes = await fetch(`${API_BASE_URL}/api/dashboard/messages/recent`, { credentials: "include" });
-        const messagesData = await messagesRes.json();
-        setRecentMessages(messagesData);
-
-        const tasksRes = await fetch(`${API_BASE_URL}/api/dashboard/tasks/overview`, { credentials: "include" });
-        const tasksData = await tasksRes.json();
-        setTasks(tasksData);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        setUserName("User");
+  
+  const fetchData = useCallback(async () => {
+    try {
+      const userUrl = `${API_BASE_URL}/api/auth/me`;
+      const userRes = await fetch(userUrl, { credentials: "include" });
+  
+      if (userRes.status === 401) {
+        navigate("/login"); // 🔹 Redirects to login if not authenticated
+        return;
       }
-    };
-
+      
+      if (!userRes.ok) throw new Error(`Failed to fetch user: ${userRes.status}`);
+  
+      const userData = await userRes.json();
+      setUserName(userData.user?.name || "User");
+  
+      // Fetch all dashboard data in parallel (Improvement)
+      const [
+        leadsRes, contactsRes, dealsRes, lastMonthRes, pipelineRes,
+        leadsRecentRes, perfRes, emailsRes, messagesRes, tasksRes
+      ] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/dashboard/leads/total`, { credentials: "include" }),
+        fetch(`${API_BASE_URL}/api/dashboard/contacts/total`, { credentials: "include" }),
+        fetch(`${API_BASE_URL}/api/dashboard/deals/open`, { credentials: "include" }),
+        fetch(`${API_BASE_URL}/api/dashboard/stats/lastMonth`, { credentials: "include" }),
+        fetch(`${API_BASE_URL}/api/dashboard/deals/pipeline`, { credentials: "include" }),
+        fetch(`${API_BASE_URL}/api/dashboard/leads/recent`, { credentials: "include" }),
+        fetch(`${API_BASE_URL}/api/dashboard/analytics/performance`, { credentials: "include" }),
+        fetch(`${API_BASE_URL}/api/dashboard/emails/recent`, { credentials: "include" }),
+        fetch(`${API_BASE_URL}/api/dashboard/messages/recent`, { credentials: "include" }),
+        fetch(`${API_BASE_URL}/api/dashboard/tasks/overview`, { credentials: "include" })
+      ]);
+  
+      // Parse JSON
+      const [leadsData, contactsData, dealsData, lastMonthData, pipelineData,
+        leadsRecentData, perfData, emailsData, messagesData, tasksData] =
+        await Promise.all([
+          leadsRes.json(), contactsRes.json(), dealsRes.json(), lastMonthRes.json(), pipelineRes.json(),
+          leadsRecentRes.json(), perfRes.json(), emailsRes.json(), messagesRes.json(), tasksRes.json()
+        ]);
+  
+      // Set state updates
+      setStats({
+        totalLeads: leadsData.totalLeads,
+        totalContacts: contactsData.totalContacts,
+        openDeals: dealsData.openDeals,
+        revenue: dealsData.totalRevenue,
+        lastMonth: lastMonthData,
+      });
+  
+      setPipeline(pipelineData.map(stage => ({
+        name: stage._id,
+        count: stage.count,
+        color: {
+          "Lead In": "bg-blue-500",
+          Qualification: "bg-yellow-500",
+          Proposal: "bg-orange-500",
+          Negotiation: "bg-violet-500",
+          "Closed Won": "bg-emerald-500",
+        }[stage._id],
+      })));
+  
+      setRecentLeads(leadsRecentData);
+      if (Array.isArray(perfData) && perfData.length > 0) setPerformance(perfData);
+      setRecentEmails(emailsData);
+      setRecentMessages(messagesData);
+      setTasks(tasksData);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      setUserName("User");
+    }
+  }, [navigate]); // ✅ `useCallback` to avoid re-fetching on every render.
+  
+  useEffect(() => {
     fetchData();
-  }, [navigate]); // Added navigate to dependency array
+  }, [fetchData]); // ✅ Ensures fetch runs once, prevents unnecessary re-renders.
+
+    
 
   const calculatePercentageChange = (current, previous) => {
     if (current === 0 && previous === 0) return 0;
@@ -124,7 +119,7 @@ const Dashboard = () => {
     return Math.round(((current - previous) / previous) * 100);
   };
 
-  const funnelData = [
+  const funnelData = useMemo(() => [
     ["Stage", "Leads", { role: "style" }],
     ...pipeline
       .sort((a, b) => b.count - a.count)
@@ -133,7 +128,7 @@ const Dashboard = () => {
         stage.count,
         ["#1E40AF", "#EAB308", "#F97316", "#7C3AED", "#10B981"][index % 5],
       ]),
-  ];
+  ], [pipeline]);
 
   const funnelOptions = {
     title: "Sales Funnel",
@@ -253,28 +248,27 @@ const Dashboard = () => {
 
         <DashboardCard title="Weekly Performance">
           <div className="h-60">
-            <ResponsiveContainer width="100%" height="100%">
-              {performance.length > 0 ? (
-                <BarChart data={performance}>
-                  <XAxis dataKey="week" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "white",
-                      border: "none",
-                      borderRadius: "8px",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-                    }}
-                  />
-                  <Bar dataKey="deals" fill="#ff077f" radius={[4, 4, 0, 0]} name="Deals" />
-                  <Bar dataKey="revenue" fill="#007bff" radius={[4, 4, 0, 0]} name="Revenue" />
-                  <Bar dataKey="leads" fill="#28a745" radius={[4, 4, 0, 0]} name="Leads" />
-                  <Bar dataKey="contacts" fill="#fd7e14" radius={[4, 4, 0, 0]} name="Contacts" />
-                </BarChart>
-              ) : (
-                <p className="text-center text-muted-foreground">No performance data available.</p>
-              )}
-            </ResponsiveContainer>
+          <ResponsiveContainer width="100%" height="100%">
+  {performance?.length > 0 ? (
+    <BarChart data={performance}>
+      <XAxis dataKey="week" axisLine={false} tickLine={false} />
+      <YAxis axisLine={false} tickLine={false} />
+      <Tooltip contentStyle={{
+        backgroundColor: "white",
+        border: "none",
+        borderRadius: "8px",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+      }}/>
+      <Bar dataKey="deals" fill="#ff077f" radius={[4, 4, 0, 0]} name="Deals" />
+      <Bar dataKey="revenue" fill="#007bff" radius={[4, 4, 0, 0]} name="Revenue" />
+      <Bar dataKey="leads" fill="#28a745" radius={[4, 4, 0, 0]} name="Leads" />
+      <Bar dataKey="contacts" fill="#fd7e14" radius={[4, 4, 0, 0]} name="Contacts" />
+    </BarChart>
+  ) : (
+    <p className="text-center text-muted-foreground">No performance data available.</p>
+  )}
+</ResponsiveContainer>
+
           </div>
         </DashboardCard>
       </div>

@@ -21,7 +21,6 @@ const API_BASE_URL =
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
 
-
 const Emails = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -45,18 +44,33 @@ const Emails = () => {
   const [attachments, setAttachments] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [emailTab, setEmailTab] = useState("emails");
+  const [lastEmailCount, setLastEmailCount] = useState(0); // Track the last email count for notifications
+  const [unreadEmails, setUnreadEmails] = useState(new Set()); // Track unread emails
+
+  // Request notification permission on component mount
+  useEffect(() => {
+    if ("Notification" in window) {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          console.log("Notification permission granted.");
+        } else {
+          console.log("Notification permission denied.");
+        }
+      });
+    }
+  }, []);
 
   const checkLoginMethod = (authData) => {
-    if (authData.authenticated && !authData.isGoogleLogin) {
+    if (!authData.authenticated) {
       toast({
         title: "Access Denied",
-        description: "This page requires a Gmail account. Please switch to your Gmail account or log in with Google.",
+        description: "Please log in to access this page.",
         variant: "destructive",
       });
       navigate("/login");
       return false;
     }
-    return authData.authenticated && authData.isGoogleLogin;
+    return true;
   };
 
   const fetchEmails = async (category) => {
@@ -67,8 +81,39 @@ const Emails = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        setEmails(data.emails || []);
-        setFilteredEmails(data.emails || []);
+        const newEmails = data.emails || [];
+        // Sort emails by date (newest first)
+        newEmails.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Check for new emails by comparing the count
+        if (lastEmailCount > 0 && newEmails.length > lastEmailCount && category === "inbox") {
+          const newCount = newEmails.length - lastEmailCount;
+          const newArrivals = newEmails.slice(0, newCount);
+
+          // Mark new emails as unread
+          newArrivals.forEach((email) => {
+            if (!email.isRead) {
+              setUnreadEmails((prev) => new Set(prev).add(email.id));
+            }
+          });
+
+          // Show notification for new emails
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("New Personal Emails", {
+              body: `You have ${newCount} new email${newCount > 1 ? "s" : ""} in your inbox.`,
+              icon: "/path/to/icon.png",
+            });
+          }
+
+          toast({
+            title: "New Emails!",
+            description: `You have ${newCount} new email${newCount > 1 ? "s" : ""} in your inbox.`,
+          });
+        }
+
+        setEmails(newEmails);
+        setFilteredEmails(newEmails);
+        setLastEmailCount(newEmails.length);
       } else {
         console.error("Failed to fetch emails:", data.error);
         toast({ title: "Error", description: "Failed to fetch emails", variant: "destructive" });
@@ -93,6 +138,19 @@ const Emails = () => {
       if (response.ok && data.email) {
         setSelectedEmail(data.email);
         setIsEmailDialogOpen(true);
+
+        // Mark the email as read when opened
+        setUnreadEmails((prev) => {
+          const updated = new Set(prev);
+          updated.delete(emailId);
+          return updated;
+        });
+
+        // Optionally, update the backend to mark the email as read
+        await fetch(`${API_BASE_URL}/api/emails/read/${emailId}`, {
+          method: "PUT",
+          credentials: "include",
+        });
       } else {
         toast({ title: "Error", description: "Email not found or doesn't exist", variant: "destructive" });
       }
@@ -118,6 +176,9 @@ const Emails = () => {
           setIsAuthenticated(true);
           setIsGoogleLogin(authData.isGoogleLogin);
           await fetchEmails(currentCategory);
+          // Set up polling every 30 seconds
+          const interval = setInterval(() => fetchEmails(currentCategory), 30000);
+          return () => clearInterval(interval);
         }
       } catch (error) {
         console.error("Error during authentication or fetching emails:", error);
@@ -348,7 +409,7 @@ const Emails = () => {
     return <p className="text-center text-lg mt-10">Loading Emails...</p>;
   }
 
-  if (!isAuthenticated || !isGoogleLogin) {
+  if (!isAuthenticated) {
     return null;
   }
 
@@ -356,7 +417,6 @@ const Emails = () => {
     <div className="flex h-screen">
       {/* Sidebar */}
       <aside className="w-64 bg-gray-100 dark:bg-gray-900 p-4 border-r">
-        {/* Tabs Navigation */}
         <nav className="space-y-3">
           <Button
             variant={emailTab === "emails" ? "default" : "ghost"}
@@ -380,7 +440,6 @@ const Emails = () => {
             <Briefcase className="mr-2 h-5 w-5" /> Business Emails
           </Button>
         </nav>
-        {/* Email Categories (Only Visible in Emails Tab) */}
         {emailTab === "emails" && (
           <nav className="space-y-3 mt-4">
             <Button className="w-full mb-4" onClick={() => setIsComposeDialogOpen(true)}>
@@ -450,6 +509,7 @@ const Emails = () => {
                 onStar={() => handleStarEmail(email.id, email.isStarred)}
                 onTrash={() => handleTrashEmail(email.id, email.isTrashed)}
                 currentCategory={currentCategory}
+                isUnread={unreadEmails.has(email.id)}
               />
             ))}
           </div>
@@ -472,7 +532,6 @@ const Emails = () => {
           </DialogHeader>
           {selectedEmail && (
             <div className="space-y-4">
-              {/* Metadata Section */}
               <div className="flex flex-col border-b pb-2 text-gray-700 dark:text-gray-300">
                 <p className="text-sm">
                   <span className="font-semibold">From:</span> {selectedEmail.from || "Unknown"}
@@ -484,7 +543,6 @@ const Emails = () => {
                   <span className="font-semibold">Date:</span> {selectedEmail.date || "Unknown"}
                 </p>
               </div>
-              {/* Email Body with Proper Styling */}
               <div
                 className="text-sm leading-relaxed overflow-y-auto max-h-[400px] p-3 bg-gray-50 dark:bg-gray-800 rounded-md"
                 style={{ wordBreak: "break-word" }}
@@ -497,7 +555,6 @@ const Emails = () => {
               </div>
             </div>
           )}
-          {/* Close Button */}
           <div className="flex justify-end pt-4">
             <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
               Close
@@ -518,7 +575,6 @@ const Emails = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
-            {/* Recipient Field */}
             <div className="space-y-2">
               <Label htmlFor="recipient" className="block text-gray-700 dark:text-gray-300 text-sm font-medium">
                 To:
@@ -536,7 +592,6 @@ const Emails = () => {
                 </Button>
               </div>
             </div>
-            {/* Template Field */}
             <div className="space-y-2">
               <Label className="block text-gray-700 dark:text-gray-300 text-sm font-medium">
                 Use Template:
@@ -565,7 +620,6 @@ const Emails = () => {
                 )}
               </select>
             </div>
-            {/* Subject Field */}
             <div className="space-y-2">
               <Label htmlFor="subject" className="block text-gray-700 dark:text-gray-300 text-sm font-medium">
                 Subject:
@@ -578,7 +632,6 @@ const Emails = () => {
                 className="w-full p-3 rounded-md border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
               />
             </div>
-            {/* Rich Text Editor (HTML Email) */}
             <div className="space-y-2">
               <Label htmlFor="editor" className="block text-gray-700 dark:text-gray-300 text-sm font-medium">
                 Message:
@@ -606,7 +659,6 @@ const Emails = () => {
                 />
               </div>
             </div>
-            {/* File Attachments */}
             <div className="space-y-2">
               <Label className="block text-gray-700 dark:text-gray-300 text-sm font-medium">
                 Attachments:
@@ -648,7 +700,6 @@ const Emails = () => {
               )}
             </div>
           </div>
-          {/* Buttons */}
           <div className="flex justify-end gap-4 pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
             <Button variant="outline" onClick={() => setIsComposeDialogOpen(false)} className="hover:bg-gray-100 dark:hover:bg-gray-800">
               Cancel
@@ -693,7 +744,6 @@ const Emails = () => {
               });
             return (
               <>
-                {/* Tabs */}
                 <div className="flex border-b pb-2 mb-4">
                   <Button
                     variant={activeTab === "contact" ? "default" : "ghost"}
@@ -710,7 +760,6 @@ const Emails = () => {
                     Leads
                   </Button>
                 </div>
-                {/* Search and Sort */}
                 <div className="flex gap-2 mb-4">
                   <Input
                     placeholder="Search contacts..."
@@ -727,7 +776,6 @@ const Emails = () => {
                     <option value="alphabetical">A-Z</option>
                   </select>
                 </div>
-                {/* Contacts List */}
                 <div className="max-h-96 overflow-y-auto space-y-2">
                   {filteredContacts.length > 0 ? (
                     filteredContacts.map((contact) => (
@@ -761,11 +809,18 @@ const Emails = () => {
   );
 };
 
-const EmailCard = ({ email, onClick, onStar, onTrash, currentCategory }) => (
-  <Card className="p-4 cursor-pointer hover:bg-gray-200 flex justify-between items-center w-50">
-    <div onClick={onClick} className="flex-1">
-      <CardContent className="p-0">
-        <h3 className="font-medium">{email.subject}</h3>
+const EmailCard = ({ email, onClick, onStar, onTrash, currentCategory, isUnread }) => (
+  <Card
+    className={`p-4 cursor-pointer hover:bg-gray-200 flex justify-between items-center w-50 ${
+      isUnread ? "bg-blue-50" : ""
+    }`}
+  >
+    <div onClick={onClick} className="flex-1 flex items-center">
+      <CardContent className="p-0 flex-1">
+        <div className="flex items-center">
+          <h3 className={`font-medium ${isUnread ? "text-blue-600" : ""}`}>{email.subject}</h3>
+          {isUnread && <span className="ml-2 w-3 h-3 bg-blue-500 rounded-full"></span>}
+        </div>
         <p className="text-sm text-muted-foreground">
           {currentCategory === "sent" ? `To: ${email.to}` : `From: ${email.from}`}
         </p>

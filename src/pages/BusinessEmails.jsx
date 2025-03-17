@@ -14,7 +14,6 @@ const API_BASE_URL =
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
 
-
 const BusinessEmails = () => {
   const [emails, setEmails] = useState([]);
   const [selectedEmail, setSelectedEmail] = useState(null);
@@ -25,7 +24,21 @@ const BusinessEmails = () => {
   const [newEmailContent, setNewEmailContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [newEmailsCount, setNewEmailsCount] = useState(0);
+  const [lastEmailCount, setLastEmailCount] = useState(0); // Track the last email count for notifications
+  const [unreadEmails, setUnreadEmails] = useState(new Set()); // Track unread emails
+
+  // Request notification permission on component mount
+  useEffect(() => {
+    if ("Notification" in window) {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          console.log("Notification permission granted.");
+        } else {
+          console.log("Notification permission denied.");
+        }
+      });
+    }
+  }, []);
 
   const fetchEmails = async () => {
     try {
@@ -36,10 +49,36 @@ const BusinessEmails = () => {
       const data = await response.json();
       console.log("Business Emails Response:", data);
       if (response.ok) {
-        // Sort emails by date in descending order (newest first)
-        const sortedEmails = (data.emails || []).sort((a, b) => new Date(b.date) - new Date(a.date));
-        setEmails(sortedEmails);
-        setNewEmailsCount(data.newEmailsCount || 0);
+        const newEmails = (data.emails || []).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Check for new emails by comparing the count
+        if (lastEmailCount > 0 && newEmails.length > lastEmailCount) {
+          const newCount = newEmails.length - lastEmailCount;
+          const newArrivals = newEmails.slice(0, newCount);
+
+          // Mark new emails as unread
+          newArrivals.forEach((email) => {
+            if (!email.isRead) {
+              setUnreadEmails((prev) => new Set(prev).add(email.id));
+            }
+          });
+
+          // Show notification for new emails
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("New Business Emails", {
+              body: `You have ${newCount} new business email${newCount > 1 ? "s" : ""} in your inbox.`,
+              icon: "/path/to/icon.png",
+            });
+          }
+
+          toast({
+            title: "New Business Emails!",
+            description: `You have ${newCount} new business email${newCount > 1 ? "s" : ""} in your inbox.`,
+          });
+        }
+
+        setEmails(newEmails);
+        setLastEmailCount(newEmails.length);
       } else {
         toast({ title: "Error", description: "Failed to fetch business emails", variant: "destructive" });
       }
@@ -56,16 +95,6 @@ const BusinessEmails = () => {
     const interval = setInterval(fetchEmails, 30000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (newEmailsCount > 0) {
-      toast({
-        title: "New Emails!",
-        description: `${newEmailsCount} new email${newEmailsCount > 1 ? "s" : ""} received.`,
-        variant: "default",
-      });
-    }
-  }, [newEmailsCount]);
 
   const handleSendEmail = async () => {
     if (!newEmailSubject || !newEmailRecipient || !newEmailContent) {
@@ -132,15 +161,37 @@ const BusinessEmails = () => {
               .map((email) => (
                 <Card
                   key={email.id}
-                  className="p-4 cursor-pointer hover:bg-gray-200"
+                  className={`p-4 cursor-pointer hover:bg-gray-200 ${
+                    unreadEmails.has(email.id) ? "bg-blue-50" : ""
+                  }`}
                   onClick={() => {
                     setSelectedEmail(email);
                     setIsEmailDialogOpen(true);
+                    // Mark email as read
+                    setUnreadEmails((prev) => {
+                      const updated = new Set(prev);
+                      updated.delete(email.id);
+                      return updated;
+                    });
+                    // Optionally, update the backend to mark the email as read
+                    fetch(`${API_BASE_URL}/api/business-email/read/${email.id}`, {
+                      method: "PUT",
+                      credentials: "include",
+                    });
                   }}
                 >
-                  <CardContent className="p-0">
-                    <h3 className="font-medium">{email.subject}</h3>
-                    <p className="text-sm text-muted-foreground">From: {email.from}</p>
+                  <CardContent className="p-0 flex items-center">
+                    <div className="flex-1">
+                      <div className="flex items-center">
+                        <h3 className={`font-medium ${unreadEmails.has(email.id) ? "text-blue-600" : ""}`}>
+                          {email.subject}
+                        </h3>
+                        {unreadEmails.has(email.id) && (
+                          <span className="ml-2 w-3 h-3 bg-blue-500 rounded-full"></span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">From: {email.from}</p>
+                    </div>
                   </CardContent>
                 </Card>
               ))

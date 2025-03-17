@@ -64,9 +64,9 @@ function SidebarContents() {
     <div className="flex flex-col z-40 h-full">
       <div className={cn("py-4 px-3 flex items-center", isCollapsed ? "justify-center" : "justify-start")}>
         <div className="flex items-center">
-          <div className="h-8 w-8 z-40 rounded-md bg-brand-neon flex items-center justify-center text-white font-bold">
-            EE
-          </div>
+        <div className="h-8 w-8 z-40 rounded-md  flex items-center justify-center">
+  <img src="/logo.png" alt="Company Logo" className="h-full w-full object-contain" />
+</div>
           {!isCollapsed && (
             <span className="ml-2 text-lg font-semibold text-white">EditEdge CRM</span>
           )}
