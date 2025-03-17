@@ -32,15 +32,18 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const userRes = await fetch(`${API_BASE_URL}/api/dashboard/me`, {
-          credentials: "include",
+        const userRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          credentials: 'include',
         });
-        if (!userRes.ok) {
-          setUserName("User");
+        if (userRes.status === 401) {
+          navigate('/login');
           return;
         }
+        if (!userRes.ok) {
+          throw new Error('Failed to fetch user');
+        }
         const userData = await userRes.json();
-        setUserName(userData.name || "User");
+        setUserName(userData.user.name || 'User');
 
         const leadsRes = await fetch(`${API_BASE_URL}/api/dashboard/leads/total`, { credentials: "include" });
         const leadsData = await leadsRes.json();

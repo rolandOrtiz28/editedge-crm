@@ -6,14 +6,13 @@ import { toast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Mail } from "lucide-react"; 
+import { Mail } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 
 const API_BASE_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
-
 
 const Register = () => {
   const [form, setForm] = useState({
@@ -36,51 +35,81 @@ const Register = () => {
     try {
       const response = await axios.post(`${API_BASE_URL}/api/auth/register`, form);
       toast({ title: "Success", description: "Registration successful!" });
-      navigate("/login"); // Redirect to login page
+      navigate("/login");
     } catch (error) {
-      toast({ title: "Error", description: error.response?.data?.message || "Registration failed", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Registration failed",
+        variant: "destructive",
+      });
     }
   };
 
-  // Function to handle Google registration redirect
   const handleGoogleRegister = () => {
-    window.location.href = `${API_BASE_URL}/api/auth/google`; // Redirect to Google OAuth endpoint
+    window.location.href = `${API_BASE_URL}/api/auth/google`;
   };
 
   return (
-    <div className="flex h-screen w-full bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
+    <div className="flex min-h-screen w-full flex-col lg:flex-row bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
       {/* Left Pane */}
       <div className="hidden lg:flex items-center justify-center flex-1 text-black relative">
-        <div className="max-w-xlg text-center">
-          <img src="/register.png" alt="Welcome" className="w-[900px] h-auto" />
+        <div className="max-w-full text-center">
+          <img
+            src="/register.png"
+            alt="Welcome"
+            className="w-full max-w-[600px] h-auto object-contain" // Adjusted for responsiveness
+          />
         </div>
       </div>
 
       {/* Right Pane */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center">
-        <div className="max-w-md w-full p-6">
-          <h1 className="text-3xl font-semibold mb-6 text-black text-center">Sign Up</h1>
-          <h1 className="text-sm font-semibold mb-6 text-gray-500 text-center">
-            Join our community with lifetime access for free!
-          </h1>
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-semibold text-black">Sign Up</h1>
+            <p className="text-sm text-gray-500 mt-2">
+              Join our community with lifetime access for free!
+            </p>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name */}
             <div>
               <Label htmlFor="name">Name</Label>
-              <Input className="text-black bg-white" type="text" name="name" value={form.name} onChange={handleChange} required />
+              <Input
+                className="text-black bg-white"
+                type="text"
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             {/* Company */}
             <div>
               <Label htmlFor="company">Company</Label>
-              <Input className="text-black bg-white" type="text" name="company" value={form.company} onChange={handleChange} required />
+              <Input
+                className="text-black bg-white"
+                type="text"
+                name="company"
+                value={form.company}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             {/* Email */}
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input className="text-black bg-white" type="email" name="email" value={form.email} onChange={handleChange} required />
+              <Input
+                className="text-black bg-white"
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             {/* Role */}
@@ -101,7 +130,10 @@ const Register = () => {
             {/* Timezone */}
             <div>
               <Label htmlFor="timezone">Timezone</Label>
-              <Select value={form.timezone} onValueChange={(value) => setForm({ ...form, timezone: value })}>
+              <Select
+                value={form.timezone}
+                onValueChange={(value) => setForm({ ...form, timezone: value })}
+              >
                 <SelectTrigger className="text-black bg-white">
                   <SelectValue placeholder="Select timezone" />
                 </SelectTrigger>
@@ -119,7 +151,14 @@ const Register = () => {
             {/* Password */}
             <div>
               <Label htmlFor="password">Password</Label>
-              <Input className="text-black bg-white" type="password" name="password" value={form.password} onChange={handleChange} required />
+              <Input
+                className="text-black bg-white"
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             {/* Submit Button */}
@@ -136,17 +175,20 @@ const Register = () => {
 
             {/* Google Register Button */}
             <Button
-  type="button"
-  onClick={handleGoogleRegister}
-  className="w-full bg-white text-black border border-gray-300 hover:bg-gray-100 flex items-center justify-center"
->
-  <FcGoogle className="mr-2 h-5 w-5" /> {/* Google icon */}
-  Register with Google
-</Button>
+              type="button"
+              onClick={handleGoogleRegister}
+              className="w-full bg-white text-black border border-gray-300 hover:bg-gray-100 flex items-center justify-center"
+            >
+              <FcGoogle className="mr-2 h-5 w-5" />
+              Register with Google
+            </Button>
 
             {/* Login Redirect */}
             <p className="text-center text-sm mt-4">
-              Already have an account? <a href="/login" className="text-[#ff077f]">Login</a>
+              Already have an account?{" "}
+              <a href="/login" className="text-[#ff077f]">
+                Login
+              </a>
             </p>
           </form>
         </div>
