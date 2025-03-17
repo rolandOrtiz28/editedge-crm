@@ -6,13 +6,14 @@ import { toast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Mail } from "lucide-react"; // Import an icon for the Google button
+import { Mail } from "lucide-react"; 
 import { FcGoogle } from "react-icons/fc";
 
 const API_BASE_URL =
-  import.meta.env.MODE === "development"
+  window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
+
 
 const Register = () => {
   const [form, setForm] = useState({

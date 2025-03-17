@@ -17,9 +17,10 @@ import Template from "../pages/Templates";
 import BusinessEmails from "./BusinessEmails";
 
 const API_BASE_URL =
-  import.meta.env.MODE === "development"
+  window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
+
 
 const Emails = () => {
   const navigate = useNavigate();

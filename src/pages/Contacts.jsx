@@ -16,9 +16,10 @@ import EntityDetailsSidebar from "@/components/lead/EntityDetailsSidebar";
 axios.defaults.withCredentials = true;
 
 const API_BASE_URL =
-  import.meta.env.MODE === "development"
+  window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
+
 
     const getStatusBadge = (status) => {
       switch (status) {

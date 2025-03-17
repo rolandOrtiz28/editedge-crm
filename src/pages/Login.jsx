@@ -9,9 +9,10 @@ import { Mail, LogIn } from "lucide-react"; // Import icons for the Google butto
 import { FcGoogle } from "react-icons/fc";
 
 const API_BASE_URL =
-  import.meta.env.MODE === "development"
+  window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
+
 
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });

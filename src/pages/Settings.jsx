@@ -11,9 +11,10 @@ import axios from "axios";
 axios.defaults.withCredentials = true;
 
 const API_BASE_URL =
-  import.meta.env.MODE === "development"
+  window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
+
 
 const Settings = () => {
   const [notifications, setNotifications] = useState({

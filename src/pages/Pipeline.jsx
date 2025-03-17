@@ -20,9 +20,10 @@ axios.defaults.withCredentials = true;
 const pipelineStages = ["Lead In", "Qualification", "Proposal", "Negotiation", "Closed Won"];
 
 const API_BASE_URL =
-  import.meta.env.MODE === "development"
+  window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
+
 
 const getStageBadge = (stage) => {
   switch(stage) {

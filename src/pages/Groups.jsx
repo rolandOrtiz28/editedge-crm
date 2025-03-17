@@ -12,9 +12,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Settings, Trash,Plus } from "lucide-react";
 
 const API_BASE_URL =
-  import.meta.env.MODE === "development"
+  window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
+
     
 const Groups = () => {
   const [groups, setGroups] = useState([]);
