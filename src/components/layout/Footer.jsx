@@ -7,7 +7,7 @@ const Footer = () => {
       <div className="container mx-auto px-4">
         <div className="flex justify-center gap-6 text-sm text-muted-foreground">
           <Link 
-            to="/privacy-policy" 
+            to="/policy" 
             className="hover:text-foreground transition-colors duration-200"
           >
             Privacy Policy

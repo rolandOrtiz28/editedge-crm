@@ -21,7 +21,7 @@ import Profile from "./pages/Profile";
 import Groups from "./pages/Groups";
 import Register from "./pages/Register";
 import Settings from "./pages/Settings";
-import PrivacyPolicy from "./pages/PrivacyPolicy";  // New import
+import Policy from "./pages/Policy";  // New import
 import TermsOfService from "./pages/TermsOfService";  // New import
 import { SidebarProvider } from "@/components/ui/sidebar";
 import SidebarWrapper from "./components/layout/Sidebar";
@@ -59,7 +59,7 @@ const App = () => {
               <Route path="/meetings" element={<LayoutWrapper><Meetings /></LayoutWrapper>} />
               <Route path="/settings" element={<LayoutWrapper><Settings /></LayoutWrapper>} />
               <Route path="/profile" element={<LayoutWrapper><Profile /></LayoutWrapper>} />
-              <Route path="/privacy-policy" element={<PrivacyPolicy />} />  
+              <Route path="/policy" element={<Policy />} />  
               <Route path="/terms-of-service" element={<TermsOfService />} />  
               <Route path="*" element={<NotFound />} />
             </Routes>
