@@ -4,16 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { Mail, LogIn } from "lucide-react"; // Import icons for the Google button
 import { FcGoogle } from "react-icons/fc";
 import { Link } from "react-router-dom";
+import { login } from "../components/utils/auth"; // Import the login function from auth.js
 
 const API_BASE_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
-
 
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -26,11 +25,15 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, form, { withCredentials: true });
+      await login(form.email, form.password); // Use the login function from auth.js
       toast({ title: "Success", description: "Login successful!" });
       navigate("/dashboard"); // Redirect to dashboard on success
     } catch (error) {
-      toast({ title: "Error", description: error.response?.data?.message || "Login failed", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message || "Login failed",
+        variant: "destructive",
+      });
     }
   };
 
@@ -60,17 +63,34 @@ const Login = () => {
             {/* Email */}
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input className="text-black bg-white" type="email" name="email" value={form.email} onChange={handleChange} required />
+              <Input
+                className="text-black bg-white"
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             {/* Password */}
             <div>
               <Label htmlFor="password">Password</Label>
-              <Input className="text-black bg-white" type="password" name="password" value={form.password} onChange={handleChange} required />
+              <Input
+                className="text-black bg-white"
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             {/* Submit Button */}
-            <Button type="submit" className="w-full bg-[#ff077f] hover:bg-[#ff005f]">
+            <Button
+              type="submit"
+              className="w-full bg-[#ff077f] hover:bg-[#ff005f]"
+            >
               <LogIn className="mr-2 h-5 w-5" /> Login
             </Button>
 
@@ -83,18 +103,21 @@ const Login = () => {
 
             {/* Google Login Button */}
             <Button
-  type="button"
-  onClick={handleGoogleLogin}
-  className="w-full bg-white text-black border border-gray-300 hover:bg-gray-100 flex items-center justify-center"
->
-  <FcGoogle className="mr-2 h-5 w-5" /> {/* Google icon */}
-  Login with Google
-</Button>
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full bg-white text-black border border-gray-300 hover:bg-gray-100 flex items-center justify-center"
+            >
+              <FcGoogle className="mr-2 h-5 w-5" /> {/* Google icon */}
+              Login with Google
+            </Button>
 
             {/* Register Redirect */}
             <p className="text-center text-sm mt-4">
-  Don't have an account? <Link to="/register" className="text-[#ff077f]">Register</Link>
-</p>
+              Don't have an account?{" "}
+              <Link to="/register" className="text-[#ff077f]">
+                Register
+              </Link>
+            </p>
           </form>
         </div>
       </div>

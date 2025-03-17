@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // Added for navigation
 import { Activity, DollarSign, Target, Users, CheckCircle, Clock } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
 import StatCard from "@/components/dashboard/StatCard";
@@ -11,7 +12,6 @@ const API_BASE_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
-
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -28,22 +28,29 @@ const Dashboard = () => {
   const [recentMessages, setRecentMessages] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [userName, setUserName] = useState("User");
+  const navigate = useNavigate(); // Added for redirecting
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const userRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          credentials: 'include',
+        const userUrl = `${API_BASE_URL}/api/auth/me`;
+        console.log("Dashboard fetching user from:", userUrl); // Debug log
+        const userRes = await fetch(userUrl, {
+          credentials: "include",
         });
+        console.log("Dashboard user response status:", userRes.status); // Debug log
+        console.log("Dashboard user response URL:", userRes.url); // Debug log
         if (userRes.status === 401) {
-          navigate('/login');
+          console.log("Dashboard: Unauthorized, navigating to /login"); // Debug log
+          navigate("/login");
           return;
         }
         if (!userRes.ok) {
-          throw new Error('Failed to fetch user');
+          throw new Error(`Failed to fetch user: ${userRes.status}`);
         }
         const userData = await userRes.json();
-        setUserName(userData.user.name || 'User');
+        console.log("Dashboard user data:", userData); // Debug log
+        setUserName(userData.user.name || "User");
 
         const leadsRes = await fetch(`${API_BASE_URL}/api/dashboard/leads/total`, { credentials: "include" });
         const leadsData = await leadsRes.json();
@@ -107,7 +114,7 @@ const Dashboard = () => {
     };
 
     fetchData();
-  }, []);
+  }, [navigate]); // Added navigate to dependency array
 
   const calculatePercentageChange = (current, previous) => {
     if (current === 0 && previous === 0) return 0;
@@ -295,38 +302,38 @@ const Dashboard = () => {
         </DashboardCard>
 
         <DashboardCard title="Task Overview">
-  <div className="space-y-2">
-    {tasks.map((task, i) => {
-      const statusColor = {
-        "To Do": "bg-yellow-100 text-yellow-800",
-        "In Progress": "bg-blue-100 text-blue-800",
-        "Completed": "bg-green-100 text-green-800",
-      }[task.status] || "bg-gray-100 text-gray-600";
+          <div className="space-y-2">
+            {tasks.map((task, i) => {
+              const statusColor = {
+                "To Do": "bg-yellow-100 text-yellow-800",
+                "In Progress": "bg-blue-100 text-blue-800",
+                "Completed": "bg-green-100 text-green-800",
+              }[task.status] || "bg-gray-100 text-gray-600";
 
-      return (
-        <div
-          key={i}
-          className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors duration-200"
-        >
-          <div className="flex items-center space-x-3">
-            <Clock className="h-5 w-5 text-gray-400" />
-            <span className="text-lg font-semibold text-gray-900 truncate max-w-xs">
-              {task.title || "Untitled Task"}
-            </span>
+              return (
+                <div
+                  key={i}
+                  className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors duration-200"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Clock className="h-5 w-5 text-gray-400" />
+                    <span className="text-lg font-semibold text-gray-900 truncate max-w-xs">
+                      {task.title || "Untitled Task"}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <span className={`inline-flex items-center px-2 py-1 text-xs font-medium ${statusColor} rounded-full`}>
+                      {task.status}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {new Date(task.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="flex items-center space-x-4">
-            <span className={`inline-flex items-center px-2 py-1 text-xs font-medium ${statusColor} rounded-full`}>
-              {task.status}
-            </span>
-            <span className="text-sm text-gray-500">
-              {new Date(task.createdAt).toLocaleDateString()}
-            </span>
-          </div>
-        </div>
-      );
-    })}
-  </div>
-</DashboardCard>
+        </DashboardCard>
       </div>
     </div>
   );
