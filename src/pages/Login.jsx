@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Mail, LogIn } from "lucide-react"; // Import icons for the Google button
 import { FcGoogle } from "react-icons/fc";
+import { Link } from "react-router-dom";
 
 const API_BASE_URL =
   window.location.hostname === "localhost"
@@ -92,8 +93,8 @@ const Login = () => {
 
             {/* Register Redirect */}
             <p className="text-center text-sm mt-4">
-              Don't have an account? <a href="/register" className="text-[#ff077f]">Register</a>
-            </p>
+  Don't have an account? <Link to="/register" className="text-[#ff077f]">Register</Link>
+</p>
           </form>
         </div>
       </div>
