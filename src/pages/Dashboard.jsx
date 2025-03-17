@@ -9,8 +9,8 @@ import { Chart } from "react-google-charts";
 
 const API_BASE_URL =
   import.meta.env.MODE === "development"
-    ? import.meta.env.VITE_API_BASE_URL_DEV
-    : import.meta.env.VITE_API_BASE_URL;
+    ? "http://localhost:3000"
+    : "https://crmapi.editedgemultimedia.com";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({

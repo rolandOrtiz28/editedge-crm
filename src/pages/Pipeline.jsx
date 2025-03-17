@@ -21,8 +21,8 @@ const pipelineStages = ["Lead In", "Qualification", "Proposal", "Negotiation", "
 
 const API_BASE_URL =
   import.meta.env.MODE === "development"
-    ? import.meta.env.VITE_API_BASE_URL_DEV
-    : import.meta.env.VITE_API_BASE_URL;
+    ? "http://localhost:3000"
+    : "https://crmapi.editedgemultimedia.com";
 
 const getStageBadge = (stage) => {
   switch(stage) {
