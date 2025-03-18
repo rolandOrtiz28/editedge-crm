@@ -13,26 +13,31 @@ import {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-  DialogTrigger
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import EntityDetailsSidebar from "@/components/lead/EntityDetailsSidebar";
 import ViewSwitcher from "@/components/common/ViewSwitcher";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 axios.defaults.withCredentials = true;
 
 const getStatusBadge = (status) => {
-  switch (status) {
-    case "New": return "bg-blue-900 text-white";
-    case "Contacted": return "bg-pink-900 text-white";
-    case "Qualified": return "bg-yellow-400 text-white";
-    case "Proposal": return "bg-orange-500 text-white";
-    case "Negotiation": return "bg-sky-600 text-white";
-    case "Won": return "bg-lime-700 text-white";
-    default: return "bg-gray-500 text-white";
+  const progressingStatuses = ["Qualified", "Proposal", "Negotiation", "Won"];
+  const initialStatuses = ["New", "Contacted"];
+
+  if (progressingStatuses.includes(status)) {
+    return "bg-brand-black text-white"; // Green for progressing statuses
+  } else if (initialStatuses.includes(status)) {
+    return "bg-brand-black text-white"; // Blue for initial statuses
+  } else {
+    return "bg-gray-500 text-white"; // Fallback for unexpected statuses
   }
 };
 
@@ -65,24 +70,43 @@ const Leads = ({ setGroups }) => {
   const [csvFile, setCsvFile] = useState(null);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("All");
-  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false); // New state for delete all dialog
-  const [loading, setLoading] = useState(false); // New state for loading
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]); // New state for list of users
+  const [selectedAssignee, setSelectedAssignee] = useState(null); // New state for assignee selection
+
+  // Fetch users for assignee dropdown
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/users`, { withCredentials: true });
+        setUsers(response.data);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
     fetchLeads();
     fetchGroups();
   }, []);
 
-  const fetchLeads = () => {
-    axios.get(`${API_BASE_URL}/api/leads`)
-      .then(response => setLeads(response.data))
-      .catch(error => console.error("Error fetching leads:", error));
+  const fetchLeads = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/leads`);
+      setLeads(response.data);
+    } catch (error) {
+      console.error("Error fetching leads:", error);
+      toast({ title: "Error", description: "Failed to fetch leads", variant: "destructive" });
+    }
   };
 
   const fetchGroups = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/groups`, { withCredentials: true });
-      const leadGroups = response.data.filter(group => 
+      const leadGroups = response.data.filter(group =>
         group.members.every(member => member.type === "lead")
       );
       setLocalGroups(leadGroups);
@@ -94,6 +118,7 @@ const Leads = ({ setGroups }) => {
 
   const openSidebar = (lead) => {
     setSelectedLead(lead);
+    setSelectedAssignee(lead.assignee || null); // Set the current assignee when opening sidebar
     setIsSidebarOpen(true);
   };
 
@@ -101,7 +126,7 @@ const Leads = ({ setGroups }) => {
     setLeads(leads.map(lead => (lead._id === updatedLead._id ? updatedLead : lead)));
   };
 
-  const handleAddLead = () => {
+  const handleAddLead = async () => {
     if (!newLeadName.trim() || !newLeadCompany.trim() || !newLeadEmail.trim()) {
       toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
       return;
@@ -119,17 +144,25 @@ const Leads = ({ setGroups }) => {
       companySize: newLeadCompanySize,
       niche: newLeadNiche,
       status: newLeadStatus,
-      value: parseInt(newLeadValue) || 0
+      value: parseInt(newLeadValue) || 0,
+      notes: [],
+      reminders: [],
+      assignee: selectedAssignee || null, // Include assignee if selected
     };
 
-    axios.post(`${API_BASE_URL}/api/leads`, newLead)
-      .then(response => {
-        setLeads([...leads, response.data]);
-        setIsDialogOpen(false);
-        resetNewLeadFields();
-        toast({ title: "Lead added", description: "New lead has been added successfully" });
-      })
-      .catch(error => console.error("Error adding lead:", error));
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/leads`, newLead);
+      setLeads([...leads, response.data]);
+      setIsDialogOpen(false);
+      resetNewLeadFields();
+      toast({ title: "Lead added", description: "New lead has been added successfully" });
+    } catch (error) {
+      console.error("Error adding lead:", error);
+      toast({ title: "Error", description: "Failed to add lead", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetNewLeadFields = () => {
@@ -145,6 +178,7 @@ const Leads = ({ setGroups }) => {
     setNewLeadNiche("");
     setNewLeadStatus("New");
     setNewLeadValue("");
+    setSelectedAssignee(null); // Reset assignee
   };
 
   const handleFileUpload = (event) => {
@@ -160,14 +194,15 @@ const Leads = ({ setGroups }) => {
     formData.append("file", csvFile);
     formData.append("createGroup", createGroup ? "true" : "false");
 
+    setLoading(true);
     try {
       const response = await axios.post(`${API_BASE_URL}/api/leads/upload-csv`, formData, {
-        headers: { "Content-Type": "multipart/form-data" }
+        headers: { "Content-Type": "multipart/form-data" },
       });
       if (response.data.leads) setLeads([...leads, ...response.data.leads]);
       toast({
         title: "CSV Uploaded",
-        description: createGroup ? "Leads imported & grouped successfully!" : "Leads imported successfully!"
+        description: createGroup ? "Leads imported & grouped successfully!" : "Leads imported successfully!",
       });
       if (createGroup) await fetchGroups();
       setIsGroupDialogOpen(false);
@@ -175,6 +210,8 @@ const Leads = ({ setGroups }) => {
     } catch (error) {
       console.error("Error uploading CSV:", error);
       toast({ title: "Error", description: "Failed to upload CSV", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -202,7 +239,9 @@ const Leads = ({ setGroups }) => {
         }) || [];
 
   const handleUpdateLeadStatus = (leadId, newStatus) => {
-    axios.put(`${API_BASE_URL}/api/leads/${leadId}`, { status: newStatus })
+    setLoading(true);
+    axios
+      .put(`${API_BASE_URL}/api/leads/${leadId}`, { status: newStatus })
       .then(() => {
         setLeads(prevLeads =>
           prevLeads.map(lead =>
@@ -211,29 +250,109 @@ const Leads = ({ setGroups }) => {
         );
         toast({ title: "Lead Updated", description: `Lead status updated to ${newStatus}.` });
       })
-      .catch(error => console.error("Error updating lead status:", error));
+      .catch(error => {
+        console.error("Error updating lead status:", error);
+        toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
+      })
+      .finally(() => setLoading(false));
+  };
+
+  const handleAssignLead = (leadId, newAssignee) => {
+    setLoading(true);
+    axios
+      .put(`${API_BASE_URL}/api/leads/${leadId}`, { assignee: newAssignee })
+      .then(response => {
+        setLeads(prevLeads =>
+          prevLeads.map(lead =>
+            lead._id === leadId ? response.data : lead
+          )
+        );
+        toast({ title: "Lead Assigned", description: "Lead assigned successfully." });
+      })
+      .catch(error => {
+        console.error("Error assigning lead:", error);
+        toast({ title: "Error", description: "Failed to assign lead", variant: "destructive" });
+      })
+      .finally(() => setLoading(false));
   };
 
   const handleDeleteLead = (id) => {
-    axios.delete(`${API_BASE_URL}/api/leads/${id}`)
+    setLoading(true);
+    axios
+      .delete(`${API_BASE_URL}/api/leads/${id}`)
       .then(() => {
         setLeads(leads.filter(lead => lead._id !== id));
         toast({ title: "Lead deleted", description: "The lead was removed successfully." });
         setIsSidebarOpen(false);
       })
-      .catch(error => console.error("Error deleting lead:", error));
+      .catch(error => {
+        console.error("Error deleting lead:", error);
+        toast({ title: "Error", description: "Failed to delete lead", variant: "destructive" });
+      })
+      .finally(() => setLoading(false));
   };
 
   const handleDeleteAllLeads = async () => {
     setLoading(true);
     try {
       await axios.delete(`${API_BASE_URL}/api/leads/delete-all`);
-      setLeads([]); // Clear UI after deletion
+      setLeads([]);
       toast({ title: "All Leads Deleted", description: "All leads have been removed successfully." });
-      setIsDeleteAllDialogOpen(false); // Close dialog after deletion
+      setIsDeleteAllDialogOpen(false);
     } catch (error) {
       console.error("Error deleting all leads:", error);
       toast({ title: "Error", description: "Failed to delete all leads", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddNote = async (leadId, noteText) => {
+    if (!noteText.trim()) return;
+    setLoading(true);
+    try {
+      const lead = leads.find(l => l._id === leadId);
+      const updatedNotes = [...(lead.notes || []), noteText];
+      const response = await axios.put(`${API_BASE_URL}/api/leads/${leadId}`, {
+        notes: updatedNotes,
+      });
+      setLeads(prevLeads =>
+        prevLeads.map(lead =>
+          lead._id === leadId ? { ...lead, notes: response.data.notes } : lead
+        )
+      );
+      if (selectedLead?._id === leadId) setSelectedLead(response.data);
+      toast({ title: "Note Added", description: "Note added successfully." });
+    } catch (error) {
+      console.error("Error adding note:", error);
+      toast({ title: "Error", description: "Failed to add note", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddReminder = async (leadId, reminderText, reminderDate) => {
+    if (!reminderText.trim() || !reminderDate) return;
+    setLoading(true);
+    try {
+      const lead = leads.find(l => l._id === leadId);
+      const updatedReminders = [
+        ...(lead.reminders || []),
+        { text: reminderText, date: new Date(reminderDate) },
+      ];
+      const response = await axios.put(`${API_BASE_URL}/api/leads/${leadId}`, {
+        reminders: updatedReminders,
+      });
+      setLeads(prevLeads =>
+        prevLeads.map(lead =>
+          lead._id === leadId ? { ...lead, reminders: response.data.reminders } : lead
+        )
+      );
+      if (selectedLead?._id === leadId) setSelectedLead(response.data);
+      toast({ title: "Reminder Added", description: "Reminder added successfully." });
+    } catch (error) {
+      console.error("Error adding reminder:", error);
+      toast({ title: "Error", description: "Failed to add reminder", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -246,31 +365,33 @@ const Leads = ({ setGroups }) => {
       { key: "email", label: "Email" },
       { key: "phone", label: "Phone" },
       { key: "status", label: "Status" },
+      { key: "assignee", label: "Assignee" }, // Add assignee column
     ],
     statusOptions,
     getStatusBadge,
-    eventMapper: (data) => data.flatMap(lead =>
-      (lead.reminders || []).map(reminder => ({
-        title: `${lead.name}: ${reminder.text}`,
-        start: new Date(reminder.date),
-        extendedProps: { item: lead },
-      }))
-    ),
+    eventMapper: (data) =>
+      data.flatMap(lead =>
+        (lead.reminders || []).map(reminder => ({
+          title: `${lead.name}: ${reminder.text}`,
+          start: new Date(reminder.date),
+          extendedProps: { item: lead },
+        }))
+      ),
   };
 
   return (
     <div className="p-7">
-      <PageHeader 
-        title="Leads" 
+      <PageHeader
+        title="Leads"
         subtitle="Track and manage your sales leads in one place."
         icon={Target}
       />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="relative w-full md:w-72">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search leads..." 
-            className="pl-8" 
+          <Input
+            placeholder="Search leads..."
+            className="pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -299,8 +420,19 @@ const Leads = ({ setGroups }) => {
                 ))}
               </SelectContent>
             </Select>
-            <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" id="csvUpload" disabled={loading} />
-            <Button variant="outline" onClick={() => document.getElementById("csvUpload").click()} disabled={loading}>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="csvUpload"
+              disabled={loading}
+            />
+            <Button
+              variant="outline"
+              onClick={() => document.getElementById("csvUpload").click()}
+              disabled={loading}
+            >
               <img src="/csv.svg" alt="CSV Icon" className="h-5 w-5" /> Upload CSV
             </Button>
             <DropdownMenu>
@@ -313,7 +445,10 @@ const Leads = ({ setGroups }) => {
                 <DropdownMenuItem onClick={() => setIsDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" /> Add New Lead
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setIsDeleteAllDialogOpen(true)} className="text-red-500">
+                <DropdownMenuItem
+                  onClick={() => setIsDeleteAllDialogOpen(true)}
+                  className="text-red-500"
+                >
                   <Trash className="mr-2 h-4 w-4" /> Delete All Leads
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -327,19 +462,48 @@ const Leads = ({ setGroups }) => {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">Name*</Label>
-                    <Input id="name" value={newLeadName} onChange={(e) => setNewLeadName(e.target.value)} placeholder="Full name" className="col-span-3" disabled={loading} />
+                    <Input
+                      id="name"
+                      value={newLeadName}
+                      onChange={(e) => setNewLeadName(e.target.value)}
+                      placeholder="Full name"
+                      className="col-span-3"
+                      disabled={loading}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="company" className="text-right">Company*</Label>
-                    <Input id="company" value={newLeadCompany} onChange={(e) => setNewLeadCompany(e.target.value)} placeholder="Company name" className="col-span-3" disabled={loading} />
+                    <Input
+                      id="company"
+                      value={newLeadCompany}
+                      onChange={(e) => setNewLeadCompany(e.target.value)}
+                      placeholder="Company name"
+                      className="col-span-3"
+                      disabled={loading}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="email" className="text-right">Email*</Label>
-                    <Input id="email" type="email" value={newLeadEmail} onChange={(e) => setNewLeadEmail(e.target.value)} placeholder="Email address" className="col-span-3" disabled={loading} />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={newLeadEmail}
+                      onChange={(e) => setNewLeadEmail(e.target.value)}
+                      placeholder="Email address"
+                      className="col-span-3"
+                      disabled={loading}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="phone" className="text-right">Phone</Label>
-                    <Input id="phone" value={newLeadPhone} onChange={(e) => setNewLeadPhone(e.target.value)} placeholder="Phone number" className="col-span-3" disabled={loading} />
+                    <Input
+                      id="phone"
+                      value={newLeadPhone}
+                      onChange={(e) => setNewLeadPhone(e.target.value)}
+                      placeholder="Phone number"
+                      className="col-span-3"
+                      disabled={loading}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status" className="text-right">Status</Label>
@@ -356,23 +520,73 @@ const Leads = ({ setGroups }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="value" className="text-right">Value ($)</Label>
-                    <Input id="value" type="number" value={newLeadValue} onChange={(e) => setNewLeadValue(e.target.value)} placeholder="Estimated value" className="col-span-3" disabled={loading} />
+                    <Input
+                      id="value"
+                      type="number"
+                      value={newLeadValue}
+                      onChange={(e) => setNewLeadValue(e.target.value)}
+                      placeholder="Estimated value"
+                      className="col-span-3"
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="assignee" className="text-right">Assignee</Label>
+                    <Select value={selectedAssignee} onValueChange={setSelectedAssignee} disabled={loading}>
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select assignee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={null}>Unassigned</SelectItem>
+                        {users.map(user => (
+                          <SelectItem key={user._id} value={user._id}>{user.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="address" className="text-right">Address</Label>
-                    <Input id="address" value={newLeadAddress} onChange={(e) => setNewLeadAddress(e.target.value)} placeholder="Company address" className="col-span-3" disabled={loading} />
+                    <Input
+                      id="address"
+                      value={newLeadAddress}
+                      onChange={(e) => setNewLeadAddress(e.target.value)}
+                      placeholder="Company address"
+                      className="col-span-3"
+                      disabled={loading}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="website" className="text-right">Website</Label>
-                    <Input id="website" value={newLeadWebsite} onChange={(e) => setNewLeadWebsite(e.target.value)} placeholder="Company website" className="col-span-3" disabled={loading} />
+                    <Input
+                      id="website"
+                      value={newLeadWebsite}
+                      onChange={(e) => setNewLeadWebsite(e.target.value)}
+                      placeholder="Company website"
+                      className="col-span-3"
+                      disabled={loading}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="description" className="text-right">Description</Label>
-                    <Input id="description" value={newLeadDescription} onChange={(e) => setNewLeadDescription(e.target.value)} placeholder="Short description" className="col-span-3" disabled={loading} />
+                    <Input
+                      id="description"
+                      value={newLeadDescription}
+                      onChange={(e) => setNewLeadDescription(e.target.value)}
+                      placeholder="Short description"
+                      className="col-span-3"
+                      disabled={loading}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="channel" className="text-right">Channel</Label>
-                    <Input id="channel" value={newLeadChannel} onChange={(e) => setNewLeadChannel(e.target.value)} placeholder="e.g., LinkedIn, Referral" className="col-span-3" disabled={loading} />
+                    <Input
+                      id="channel"
+                      value={newLeadChannel}
+                      onChange={(e) => setNewLeadChannel(e.target.value)}
+                      placeholder="e.g., LinkedIn, Referral"
+                      className="col-span-3"
+                      disabled={loading}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="companySize" className="text-right">Company Size</Label>
@@ -391,7 +605,14 @@ const Leads = ({ setGroups }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="niche" className="text-right">Niche</Label>
-                    <Input id="niche" value={newLeadNiche} onChange={(e) => setNewLeadNiche(e.target.value)} placeholder="e.g., SaaS, Healthcare" className="col-span-3" disabled={loading} />
+                    <Input
+                      id="niche"
+                      value={newLeadNiche}
+                      onChange={(e) => setNewLeadNiche(e.target.value)}
+                      placeholder="e.g., SaaS, Healthcare"
+                      className="col-span-3"
+                      disabled={loading}
+                    />
                   </div>
                 </div>
                 <DialogFooter>
@@ -412,6 +633,7 @@ const Leads = ({ setGroups }) => {
         viewConfig={viewConfig}
         onItemClick={openSidebar}
         onUpdateStatus={handleUpdateLeadStatus}
+        onAssignLead={handleAssignLead} // Pass assign handler
       />
 
       <Card className="mt-6 animate-fade-in">
@@ -443,20 +665,38 @@ const Leads = ({ setGroups }) => {
         onClose={() => setIsSidebarOpen(false)}
         onUpdate={updateLead}
         onDelete={handleDeleteLead}
+        onAddNote={handleAddNote}
+        onAddReminder={handleAddReminder}
+        onAssign={handleAssignLead} // Pass assign handler to sidebar
+        assignee={selectedAssignee}
+        setAssignee={setSelectedAssignee}
+        users={users} // Pass users for assignee selection
         entityType="lead"
       />
 
       <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
         <DialogContent className="p-6 max-w-md bg-white dark:bg-gray-900 rounded-lg shadow-lg">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">Create a Group?</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">
+              Create a Group?
+            </DialogTitle>
           </DialogHeader>
-          <p className="text-gray-700 dark:text-gray-300">Do you want to create a group for this CSV file?</p>
+          <p className="text-gray-700 dark:text-gray-300">
+            Do you want to create a group for this CSV file?
+          </p>
           <div className="flex justify-end space-x-3 mt-4">
-            <Button variant="outline" onClick={() => handleCsvUploadWithChoice(false)} disabled={loading}>
+            <Button
+              variant="outline"
+              onClick={() => handleCsvUploadWithChoice(false)}
+              disabled={loading}
+            >
               {loading ? "Processing..." : "No"}
             </Button>
-            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleCsvUploadWithChoice(true)} disabled={loading}>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => handleCsvUploadWithChoice(true)}
+              disabled={loading}
+            >
               {loading ? "Processing..." : "Yes"}
             </Button>
           </div>
@@ -472,10 +712,18 @@ const Leads = ({ setGroups }) => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsDeleteAllDialogOpen(false)} disabled={loading}>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteAllDialogOpen(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteAllLeads} disabled={loading}>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAllLeads}
+              disabled={loading}
+            >
               {loading ? "Deleting..." : "Delete All"}
             </Button>
           </DialogFooter>

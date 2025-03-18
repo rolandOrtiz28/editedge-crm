@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Search, Settings, User, LogOut, LogIn, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,10 @@ const API_BASE_URL =
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
-  const [notifications, setNotifications] = useState([]); // Initial state is an empty array
+  const [notifications, setNotifications] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const navigate = useNavigate();
 
   // Fetch user data on mount
@@ -43,50 +46,74 @@ export default function Navbar() {
     fetchUser();
   }, []);
 
-  // Fetch notifications on mount and when user changes
+  // Fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
       if (!user) {
         console.log("⚠️ User not logged in, skipping notifications fetch.");
         return;
       }
-      console.log("🔍 Fetching notifications for user:", user._id);
       try {
         const response = await axios.get(`${API_BASE_URL}/api/notifications`, {
           withCredentials: true,
         });
-        console.log("✅ Notifications fetched:", response.data);
-
-        // Ensure response.data is an array; fallback to empty array if not
         const notificationsData = Array.isArray(response.data) ? response.data : [];
         setNotifications(notificationsData);
 
         if (notificationsData.length > 0) {
           notificationsData.forEach((notif) => {
-            console.log("📩 Showing toast for notification:", notif);
             toast({
               title: notif.type === "task" ? "New Task Assigned" : "New Lead Assigned",
               description: notif.message,
             });
           });
-        } else {
-          console.log("⚠️ No new notifications to display.");
         }
       } catch (error) {
         console.error("❌ Error fetching notifications:", error);
-        setNotifications([]); // Reset to empty array on error
+        setNotifications([]);
       }
     };
 
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Check every 60 seconds
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, [user]);
 
-  // Handle Logout
+  // Memoized search handler
+  const handleSearch = useCallback(async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsSearchOpen(false);
+      return;
+    }
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/search`, {
+        params: { q: searchQuery },
+        withCredentials: true,
+      });
+      const results = Array.isArray(response.data) ? response.data : [];
+      setSearchResults(results);
+      setIsSearchOpen(true);
+    } catch (error) {
+      console.error("❌ Error searching:", error);
+      toast({ title: "Search Error", description: "Failed to perform search", variant: "destructive" });
+      setSearchResults([]);
+      setIsSearchOpen(false);
+    }
+  }, [searchQuery]);
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      handleSearch();
+    }, 300); // 300ms debounce delay
+    return () => clearTimeout(timeout);
+  }, [searchQuery, handleSearch]); // Runs when searchQuery or handleSearch changes
+
+  // Handle logout
   const handleLogout = async () => {
     try {
-      console.log("🔍 Logging out user:", user?._id);
       await axios.post(`${API_BASE_URL}/api/auth/logout`, {}, { withCredentials: true });
       setUser(null);
       navigate("/login");
@@ -95,21 +122,27 @@ export default function Navbar() {
     }
   };
 
-  // Mark notification as read and navigate
+  // Handle notification click
   const handleNotificationClick = async (notif) => {
     try {
-      console.log("🔍 Marking notification as read:", notif._id);
       await axios.put(
         `${API_BASE_URL}/api/notifications/${notif._id}/read`,
         {},
         { withCredentials: true }
       );
-      console.log("✅ Notification marked as read, navigating to:", notif.type, notif.itemId);
       setNotifications((prev) => prev.filter((n) => n._id !== notif._id));
       navigate("/profile");
     } catch (error) {
       console.error("❌ Error marking notification as read:", error);
     }
+  };
+
+  // Handle search result click
+  const handleResultClick = (result) => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsSearchOpen(false);
+    navigate(`/${result.type}s/${result._id}`); // Navigate to specific entity detail page
   };
 
   return (
@@ -121,9 +154,33 @@ export default function Navbar() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search..."
+              placeholder="Search leads, tasks, contacts..."
               className="w-[200px] lg:w-[300px] pl-8 rounded-full bg-secondary"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
+            {isSearchOpen && (
+              <div className="absolute top-12 w-full bg-white shadow-lg rounded-lg border z-50 max-h-80 overflow-y-auto">
+                {searchResults.length === 0 ? (
+                  <div className="p-3 text-center text-gray-500">No results found</div>
+                ) : (
+                  searchResults.map((result) => (
+                    <div
+                      key={result._id}
+                      onClick={() => handleResultClick(result)}
+                      className="p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+                    >
+                      <p className="text-sm font-medium">
+                        {result.name || result.title} ({result.type})
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {result.company || result.description || "No additional info"}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
 
           {/* Notifications */}
@@ -161,10 +218,6 @@ export default function Navbar() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-          {/* Settings */}
-          <Button variant="ghost" size="icon">
-            <Settings className="h-5 w-5" />
-          </Button>
 
           {/* User Profile */}
           {user ? (

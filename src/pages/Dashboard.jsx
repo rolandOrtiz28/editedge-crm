@@ -112,10 +112,15 @@ const Dashboard = () => {
     
 
   const calculatePercentageChange = (current, previous) => {
-    if (current === 0 && previous === 0) return 0;
-    if (previous === 0) {
-      return current > 0 ? 100 : -100;
+    // If both current and previous are 0, there’s no change, so return 0%
+    if (current === 0 && previous === 0) {
+      return 0;
     }
+    // If previous is 0 but current is not, return 100% (or -100% if current is negative)
+    if (previous === 0) {
+      return current > 0 ? 100 : current < 0 ? -100 : 0; // Ensure 0% when current is 0
+    }
+    // Standard percentage change calculation
     return Math.round(((current - previous) / previous) * 100);
   };
 
@@ -147,42 +152,42 @@ const Dashboard = () => {
         icon={Activity}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-4 sm:mb-8">
-        <StatCard
-          title="Total Leads"
-          value={stats.totalLeads}
-          icon={Target}
-          change={{
-            value: calculatePercentageChange(stats.totalLeads, stats.lastMonth.totalLeads),
-            isPositive: stats.totalLeads >= stats.lastMonth.totalLeads,
-          }}
-        />
-        <StatCard
-          title="Total Contacts"
-          value={stats.totalContacts}
-          icon={Users}
-          change={{
-            value: calculatePercentageChange(stats.totalContacts, stats.lastMonth.totalContacts),
-            isPositive: stats.totalContacts >= stats.lastMonth.totalContacts,
-          }}
-        />
-        <StatCard
-          title="Open Deals"
-          value={stats.openDeals}
-          icon={Activity}
-          change={{
-            value: calculatePercentageChange(stats.openDeals, stats.lastMonth.openDeals),
-            isPositive: stats.openDeals >= stats.lastMonth.openDeals,
-          }}
-        />
-        <StatCard
-          title="Revenue"
-          value={`$${stats.revenue.toLocaleString()}`}
-          icon={DollarSign}
-          change={{
-            value: calculatePercentageChange(stats.revenue, stats.lastMonth.revenue),
-            isPositive: stats.revenue >= stats.lastMonth.revenue,
-          }}
-        />
+      <StatCard
+  title="Total Leads"
+  value={stats.totalLeads}
+  icon={Target}
+  change={{
+    value: calculatePercentageChange(stats.totalLeads, stats.lastMonth.totalLeads),
+    isPositive: stats.totalLeads >= stats.lastMonth.totalLeads,
+  }}
+/>
+<StatCard
+  title="Total Contacts"
+  value={stats.totalContacts}
+  icon={Users}
+  change={{
+    value: calculatePercentageChange(stats.totalContacts, stats.lastMonth.totalContacts),
+    isPositive: stats.totalContacts >= stats.lastMonth.totalContacts,
+  }}
+/>
+<StatCard
+  title="Open Deals"
+  value={stats.openDeals}
+  icon={Activity}
+  change={{
+    value: calculatePercentageChange(stats.openDeals, stats.lastMonth.openDeals),
+    isPositive: stats.openDeals >= stats.lastMonth.openDeals,
+  }}
+/>
+<StatCard
+  title="Revenue"
+  value={`$${stats.revenue.toLocaleString()}`}
+  icon={DollarSign}
+  change={{
+    value: calculatePercentageChange(stats.revenue, stats.lastMonth.revenue),
+    isPositive: stats.revenue >= stats.lastMonth.revenue,
+  }}
+/>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-8">

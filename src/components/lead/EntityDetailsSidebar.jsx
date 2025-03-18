@@ -20,11 +20,13 @@ import "react-datepicker/dist/react-datepicker.css";
 
 const statusOptions = ["New", "Contacted", "Qualified", "Proposal", "Negotiation", "Won"];
 
-const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, entityType }) => {
+const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, onAddNote, onAddReminder, entityType, users, assignee, setAssignee, onAssign }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedEntity, setEditedEntity] = useState(entity ? { ...entity } : {});
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [users, setUsers] = useState([]); // State for users/assignees
+  const [newNote, setNewNote] = useState("");
+  const [newReminderText, setNewReminderText] = useState("");
+  const [newReminderDate, setNewReminderDate] = useState(null);
 
   useEffect(() => {
     if (entity) {
@@ -42,7 +44,10 @@ const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, ent
         toast({ title: `${entityType} Updated`, description: "Changes saved successfully." });
         setIsEditing(false);
       })
-      .catch((error) => console.error(`Error updating ${entityType}:`, error));
+      .catch((error) => {
+        console.error(`Error updating ${entityType}:`, error);
+        toast({ title: "Error", description: `Failed to update ${entityType}`, variant: "destructive" });
+      });
   };
 
   const handleStatusChange = (newStatus) => {
@@ -54,7 +59,31 @@ const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, ent
         onUpdate(response.data);
         toast({ title: "Status Updated", description: `${entityType} status changed to ${newStatus}.` });
       })
-      .catch((error) => console.error(`Error updating status:`, error));
+      .catch((error) => {
+        console.error(`Error updating status:`, error);
+        toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
+      });
+  };
+
+  const handleAssign = () => {
+    if (assignee !== entity.assignee) {
+      onAssign(entity._id, assignee);
+      // Optionally update editedEntity if you want to reflect the change immediately
+      setEditedEntity({ ...editedEntity, assignee });
+    }
+  };
+
+  const handleAddNote = () => {
+    if (!newNote.trim()) return;
+    onAddNote(entity._id, newNote);
+    setNewNote("");
+  };
+
+  const handleAddReminder = () => {
+    if (!newReminderText.trim() || !newReminderDate) return;
+    onAddReminder(entity._id, newReminderText, newReminderDate.toISOString());
+    setNewReminderText("");
+    setNewReminderDate(null);
   };
 
   const fields = {
@@ -70,6 +99,7 @@ const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, ent
       { key: "companySize", label: "Company Size" },
       { key: "niche", label: "Niche" },
       { key: "value", label: "Lead Value ($)" },
+      { key: "assignee", label: "Assignee", customRender: true }, // Add custom render for assignee
     ],
     contact: [
       { key: "name", label: "Name" },
@@ -79,7 +109,6 @@ const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, ent
       { key: "status", label: "Status" },
     ],
   };
-  
 
   return (
     <div
@@ -107,11 +136,41 @@ const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, ent
       </div>
 
       {/* Information Fields */}
-      <div className="space-y-3 flex-grow">
+      <div className="space-y-3">
         {fields[entityType].map((field) => (
           <div key={field.key} className="relative">
             <Label className="text-xs text-[#f0f0f0]">{field.label}</Label>
-            {isEditing ? (
+            {field.customRender ? (
+              <div className="flex items-center justify-between p-3 rounded-md bg-[#ff077f] bg-opacity-0 hover:bg-opacity-10 group">
+                <p className="text-sm text-[#f0f0f0] font-medium">
+                  {users.find(u => u._id === entity.assignee)?.name || "Unassigned"}
+                </p>
+                {isEditing && (
+                  <div className="flex items-center gap-2">
+                    <Select value={assignee} onValueChange={setAssignee}>
+                      <SelectTrigger className="text-sm bg-[#404040] text-[#f0f0f0] border-none focus:ring-0 w-40">
+                        <SelectValue placeholder="Select assignee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={null}>Unassigned</SelectItem>
+                        {users.map(user => (
+                          <SelectItem key={user._id} value={user._id}>
+                            {user.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={handleAssign}
+                      className="bg-[#ff077f] text-white hover:bg-[#ff005f] px-2 py-1 text-sm"
+                      disabled={!assignee || assignee === entity.assignee}
+                    >
+                      Assign
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : isEditing ? (
               <Input
                 value={editedEntity[field.key] || ""}
                 onChange={(e) => setEditedEntity({ ...editedEntity, [field.key]: e.target.value })}
@@ -130,7 +189,7 @@ const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, ent
           </div>
         ))}
 
-        {/* Status */}
+        {/* Status (for Leads) */}
         {entityType === "lead" && (
           <div>
             <Label className="text-xs text-[#f0f0f0]">Status</Label>
@@ -148,55 +207,134 @@ const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, ent
             </Select>
           </div>
         )}
+
+        {/* Notes Section (for Leads) */}
+        {entityType === "lead" && (
+          <div className="mt-4">
+            <Label className="text-xs text-[#f0f0f0]">Notes</Label>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {entity.notes && entity.notes.length > 0 ? (
+                entity.notes.map((note, index) => (
+                  <div key={index} className="p-2 bg-[#404040] rounded-md text-sm">
+                    {note}
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-400">No notes yet.</p>
+              )}
+            </div>
+            <div className="mt-2 flex gap-2">
+              <Input
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Add a note..."
+                className="text-sm bg-[#404040] text-[#f0f0f0] border-none focus:ring-0"
+              />
+              <Button
+                onClick={handleAddNote}
+                disabled={!newNote.trim()}
+                className="bg-[#ff077f] text-white hover:bg-[#ff005f]"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Reminders Section (for Leads) */}
+        {entityType === "lead" && (
+          <div className="mt-4">
+            <Label className="text-xs text-[#f0f0f0]">Reminders</Label>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {entity.reminders && entity.reminders.length > 0 ? (
+                entity.reminders.map((reminder, index) => (
+                  <div key={index} className="p-2 bg-[#404040] rounded-md text-sm flex justify-between">
+                    <span>{reminder.text}</span>
+                    <span>{new Date(reminder.date).toLocaleString()}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-400">No reminders yet.</p>
+              )}
+            </div>
+            <div className="mt-2 space-y-2">
+              <Input
+                value={newReminderText}
+                onChange={(e) => setNewReminderText(e.target.value)}
+                placeholder="Reminder text..."
+                className="text-sm bg-[#404040] text-[#f0f0f0] border-none focus:ring-0"
+              />
+              <DatePicker
+                selected={newReminderDate}
+                onChange={(date) => setNewReminderDate(date)}
+                showTimeSelect
+                dateFormat="Pp"
+                placeholderText="Select date and time"
+                className="w-full text-sm bg-[#404040] text-[#f0f0f0] border-none rounded-md p-2"
+              />
+              <Button
+                onClick={handleAddReminder}
+                disabled={!newReminderText.trim() || !newReminderDate}
+                className="w-full bg-[#ff077f] text-white hover:bg-[#ff005f]"
+              >
+                <Bell className="h-4 w-4 mr-1" /> Add Reminder
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Action Buttons */}
-      {/* Action Buttons */}
-<div className="flex justify-between gap-2 mt-4">
-  <Button variant="outline" className="w-full text-[#f0f0f0] bg-[#333333]" onClick={() => setIsEditing(!isEditing)}>
-    <Pencil className="h-4 w-4 mr-1" />
-    {isEditing ? "Cancel Edit" : "Edit"}
-  </Button>
-  {isEditing && (
-    <Button className="w-full bg-[#ff077f] text-white hover:bg-[#ff005f]" onClick={handleUpdate}>
-      <Save className="h-4 w-4 mr-1" />
-      Save
-    </Button>
-  )}
-  {/* Delete Button with Confirmation Dialog */}
-  <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-    <DialogTrigger asChild>
-      <Button variant="destructive" className="w-full bg-red-600 text-white hover:bg-red-500">
-        <Trash className="h-4 w-4 mr-1" />
-        Delete
-      </Button>
-    </DialogTrigger>
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogDescription>
-          Are you sure you want to delete this {entityType}? This action cannot be undone.
-        </DialogDescription>
-      </DialogHeader>
-      <DialogFooter>
-        <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>
-          Cancel
-        </Button>
+      <div className="flex justify-between gap-2 mt-4">
         <Button
-          variant="destructive"
-          className="bg-red-600 text-white hover:bg-red-500"
-          onClick={() => {
-            onDelete(entity._id);
-            setIsConfirmOpen(false);
-          }}
+          variant="outline"
+          className="w-full text-[#f0f0f0] bg-[#333333]"
+          onClick={() => setIsEditing(!isEditing)}
         >
-          Yes, Delete
+          <Pencil className="h-4 w-4 mr-1" />
+          {isEditing ? "Cancel Edit" : "Edit"}
         </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-</div>
-
+        {isEditing && (
+          <Button
+            className="w-full bg-[#ff077f] text-white hover:bg-[#ff005f]"
+            onClick={handleUpdate}
+          >
+            <Save className="h-4 w-4 mr-1" />
+            Save
+          </Button>
+        )}
+        <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+          <DialogTrigger asChild>
+            <Button variant="destructive" className="w-full bg-red-600 text-white hover:bg-red-500">
+              <Trash className="h-4 w-4 mr-1" />
+              Delete
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this {entityType}? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="bg-red-600 text-white hover:bg-red-500"
+                onClick={() => {
+                  onDelete(entity._id);
+                  setIsConfirmOpen(false);
+                }}
+              >
+                Yes, Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 };

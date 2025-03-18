@@ -4,7 +4,14 @@ import axios from "axios";
 import PageHeader from "@/components/common/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import TaskDetailsSidebar from "@/components/lead/TaskDetailsSidebar";
 import ViewSwitcher from "@/components/common/ViewSwitcher";
@@ -15,7 +22,6 @@ const API_BASE_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
-
 
 const getPriorityBadge = (priority) => {
   switch (priority) {
@@ -29,7 +35,7 @@ const getPriorityBadge = (priority) => {
 const getStatusBadge = (status) => {
   switch (status) {
     case "Completed": return "bg-green-500 text-white";
-    case "In Progress": return "bg-blue-500 text-white"; // Added "In Progress"
+    case "In Progress": return "bg-blue-500 text-white";
     case "To Do": return "bg-yellow-500 text-white";
     default: return "bg-gray-500 text-white";
   }
@@ -54,16 +60,19 @@ const Tasks = () => {
     } catch (error) {
       console.error("Error fetching tasks:", error);
       setTasks([]);
+      toast({ title: "Error", description: "Failed to fetch tasks", variant: "destructive" });
     }
   };
 
   const deleteTask = async (taskId) => {
     try {
       await axios.delete(`${API_BASE_URL}/api/tasks/${taskId}`);
-      fetchTasks();
+      fetchTasks(); // Refresh task list
+      handleCloseSidebar(); // Close sidebar after deletion
       toast({ title: "Task deleted", description: "The task was removed successfully." });
     } catch (error) {
       console.error("Error deleting task:", error);
+      toast({ title: "Error", description: "Failed to delete task", variant: "destructive" });
     }
   };
 
@@ -74,12 +83,13 @@ const Tasks = () => {
     try {
       const statuses = ["To Do", "In Progress", "Completed"];
       const currentIndex = statuses.indexOf(currentStatus);
-      const newStatus = statuses[(currentIndex + 1) % statuses.length]; // Cycle through statuses
+      const newStatus = statuses[(currentIndex + 1) % statuses.length];
       await axios.put(`${API_BASE_URL}/api/tasks/${id}`, { status: newStatus });
       fetchTasks();
       toast({ title: "Task updated", description: `Task status changed to ${newStatus}.` });
     } catch (error) {
       console.error("Error updating task status:", error);
+      toast({ title: "Error", description: "Failed to update task status", variant: "destructive" });
     }
   };
 
@@ -95,13 +105,14 @@ const Tasks = () => {
       { key: "priority", label: "Priority" },
       { key: "status", label: "Status" },
     ],
-    statusOptions: ["To Do", "In Progress", "Completed"], // Updated to include "In Progress"
+    statusOptions: ["To Do", "In Progress", "Completed"],
     getStatusBadge,
-    eventMapper: (data) => data.map(task => ({
-      title: task.title,
-      start: new Date(task.dueDate || Date.now()),
-      extendedProps: { item: task },
-    })),
+    eventMapper: (data) =>
+      data.map(task => ({
+        title: task.title,
+        start: new Date(task.dueDate || Date.now()),
+        extendedProps: { item: task },
+      })),
   };
 
   return (
@@ -114,9 +125,9 @@ const Tasks = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="relative w-full md:w-72">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search tasks..." 
-            className="pl-8" 
+          <Input
+            placeholder="Search tasks..."
+            className="pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -148,18 +159,18 @@ const Tasks = () => {
         onUpdateStatus={toggleTaskStatus}
       />
 
-      <TaskDetailsSidebar 
-        task={selectedTask} 
-        isOpen={!!selectedTask} 
-        onClose={handleCloseSidebar} 
-        onUpdate={fetchTasks} 
+      <TaskDetailsSidebar
+        task={selectedTask}
+        isOpen={!!selectedTask}
+        onClose={handleCloseSidebar}
+        onUpdate={fetchTasks}
         onDelete={deleteTask}
       />
     </div>
   );
 };
 
-// TaskForm remains unchanged, but ensure it supports "In Progress" implicitly by not restricting status on creation
+// TaskForm (unchanged, included for completeness)
 const TaskForm = ({ onTaskAdded, onClose }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -205,7 +216,7 @@ const TaskForm = ({ onTaskAdded, onClose }) => {
         relatedTo: relatedTo || null,
         relatedModel: relatedModel || null,
         assignedTo: assignedTo || null,
-        status: "To Do", // Default status, but backend schema allows "In Progress"
+        status: "To Do",
       };
       await axios.post(`${API_BASE_URL}/api/tasks`, newTask);
       toast({ title: "Task created successfully!" });
@@ -213,6 +224,7 @@ const TaskForm = ({ onTaskAdded, onClose }) => {
       if (onClose) onClose();
     } catch (error) {
       console.error("Error adding task:", error.response?.data || error.message);
+      toast({ title: "Error", description: "Failed to create task", variant: "destructive" });
     }
   };
 
@@ -222,37 +234,37 @@ const TaskForm = ({ onTaskAdded, onClose }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-col">
           <label className="font-medium mb-2">Task Title:</label>
-          <Input 
-            value={title} 
-            onChange={(e) => setTitle(e.target.value)} 
-            placeholder="Enter task title" 
-            required 
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Enter task title"
+            required
             className="p-3 border rounded-md"
           />
         </div>
         <div className="flex flex-col">
           <label className="font-medium mb-2">Description:</label>
-          <Input 
-            value={description} 
-            onChange={(e) => setDescription(e.target.value)} 
-            placeholder="Enter description" 
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Enter description"
             className="p-3 border rounded-md"
           />
         </div>
         <div className="flex flex-col">
           <label className="font-medium mb-2">Due Date:</label>
-          <Input 
-            type="date" 
-            value={dueDate} 
-            onChange={(e) => setDueDate(e.target.value)} 
+          <Input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
             className="p-3 border rounded-md"
           />
         </div>
         <div className="flex flex-col">
           <label className="font-medium mb-2">Priority:</label>
-          <select 
-            value={priority} 
-            onChange={(e) => setPriority(e.target.value)} 
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
             className="w-full p-3 border rounded-md"
           >
             <option value="High">High</option>
@@ -262,9 +274,9 @@ const TaskForm = ({ onTaskAdded, onClose }) => {
         </div>
         <div className="flex flex-col">
           <label className="font-medium mb-2">Related To:</label>
-          <select 
-            value={relatedModel} 
-            onChange={(e) => setRelatedModel(e.target.value)} 
+          <select
+            value={relatedModel}
+            onChange={(e) => setRelatedModel(e.target.value)}
             className="w-full p-3 border rounded-md"
           >
             <option value="Lead">Lead</option>
@@ -275,9 +287,9 @@ const TaskForm = ({ onTaskAdded, onClose }) => {
         {relatedModel === "Lead" && (
           <div className="flex flex-col">
             <label className="font-medium mb-2">Select Lead:</label>
-            <select 
-              value={relatedTo} 
-              onChange={(e) => setRelatedTo(e.target.value)} 
+            <select
+              value={relatedTo}
+              onChange={(e) => setRelatedTo(e.target.value)}
               className="w-full p-3 border rounded-md"
             >
               <option value="">Select Lead</option>
@@ -288,9 +300,9 @@ const TaskForm = ({ onTaskAdded, onClose }) => {
         {relatedModel === "Contact" && (
           <div className="flex flex-col">
             <label className="font-medium mb-2">Select Contact:</label>
-            <select 
-              value={relatedTo} 
-              onChange={(e) => setRelatedTo(e.target.value)} 
+            <select
+              value={relatedTo}
+              onChange={(e) => setRelatedTo(e.target.value)}
               className="w-full p-3 border rounded-md"
             >
               <option value="">Select Contact</option>
@@ -301,9 +313,9 @@ const TaskForm = ({ onTaskAdded, onClose }) => {
         {relatedModel === "Deal" && (
           <div className="flex flex-col">
             <label className="font-medium mb-2">Select Deal:</label>
-            <select 
-              value={relatedTo} 
-              onChange={(e) => setRelatedTo(e.target.value)} 
+            <select
+              value={relatedTo}
+              onChange={(e) => setRelatedTo(e.target.value)}
               className="w-full p-3 border rounded-md"
             >
               <option value="">Select Deal</option>
@@ -313,9 +325,9 @@ const TaskForm = ({ onTaskAdded, onClose }) => {
         )}
         <div className="flex flex-col">
           <label className="font-medium mb-2">Assign To:</label>
-          <select 
-            value={assignedTo} 
-            onChange={(e) => setAssignedTo(e.target.value)} 
+          <select
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
             className="w-full p-3 border rounded-md"
           >
             <option value="">Select Assignee</option>
