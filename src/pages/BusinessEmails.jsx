@@ -92,7 +92,7 @@ const BusinessEmails = () => {
 
   useEffect(() => {
     fetchEmails();
-    const interval = setInterval(fetchEmails, 30000);
+    const interval = setInterval(fetchEmails, 7200000);
     return () => clearInterval(interval);
   }, []);
 

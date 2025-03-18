@@ -177,7 +177,7 @@ const Emails = () => {
           setIsGoogleLogin(authData.isGoogleLogin);
           await fetchEmails(currentCategory);
           // Set up polling every 30 seconds
-          const interval = setInterval(() => fetchEmails(currentCategory), 30000);
+          const interval = setInterval(() => fetchEmails(currentCategory), 7200000);
           return () => clearInterval(interval);
         }
       } catch (error) {
