@@ -205,7 +205,7 @@ const Groups = () => {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Groups Management</h1>
         <Button
           onClick={() => setIsGroupDialogOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+          className="bg-brand-black hover:bg-blue-700 text-white flex items-center gap-2"
           aria-label="Create a new group"
         >
           <Plus className="h-5 w-5" /> New Group

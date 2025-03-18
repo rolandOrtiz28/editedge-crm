@@ -1,17 +1,26 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Filter, Plus, Search, Target } from "lucide-react";
+import { ArrowUpRight, Filter, Plus, Search, Target, Settings, Trash } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import EntityDetailsSidebar from "@/components/lead/EntityDetailsSidebar";
 import ViewSwitcher from "@/components/common/ViewSwitcher";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 axios.defaults.withCredentials = true;
 
@@ -31,7 +40,6 @@ const API_BASE_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:3000"
     : "https://crmapi.editedgemultimedia.com";
-
 
 const Leads = ({ setGroups }) => {
   const [leads, setLeads] = useState([]);
@@ -57,6 +65,8 @@ const Leads = ({ setGroups }) => {
   const [csvFile, setCsvFile] = useState(null);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("All");
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false); // New state for delete all dialog
+  const [loading, setLoading] = useState(false); // New state for loading
 
   useEffect(() => {
     fetchLeads();
@@ -214,6 +224,21 @@ const Leads = ({ setGroups }) => {
       .catch(error => console.error("Error deleting lead:", error));
   };
 
+  const handleDeleteAllLeads = async () => {
+    setLoading(true);
+    try {
+      await axios.delete(`${API_BASE_URL}/api/leads/delete-all`);
+      setLeads([]); // Clear UI after deletion
+      toast({ title: "All Leads Deleted", description: "All leads have been removed successfully." });
+      setIsDeleteAllDialogOpen(false); // Close dialog after deletion
+    } catch (error) {
+      console.error("Error deleting all leads:", error);
+      toast({ title: "Error", description: "Failed to delete all leads", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const viewConfig = {
     columns: [
       { key: "name", label: "Name" },
@@ -274,16 +299,26 @@ const Leads = ({ setGroups }) => {
                 ))}
               </SelectContent>
             </Select>
-            <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" id="csvUpload" />
-            <Button variant="outline" onClick={() => document.getElementById("csvUpload").click()}>
+            <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" id="csvUpload" disabled={loading} />
+            <Button variant="outline" onClick={() => document.getElementById("csvUpload").click()} disabled={loading}>
               <img src="/csv.svg" alt="CSV Icon" className="h-5 w-5" /> Upload CSV
             </Button>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full md:w-auto">
-                  <Plus className="mr-2 h-4 w-4" /> Add Lead
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="p-2" disabled={loading}>
+                  <Settings className="h-5 w-5" />
                 </Button>
-              </DialogTrigger>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setIsDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Add New Lead
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsDeleteAllDialogOpen(true)} className="text-red-500">
+                  <Trash className="mr-2 h-4 w-4" /> Delete All Leads
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogContent className="sm:max-w-[525px]">
                 <DialogHeader>
                   <DialogTitle>Add New Lead</DialogTitle>
@@ -292,23 +327,23 @@ const Leads = ({ setGroups }) => {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">Name*</Label>
-                    <Input id="name" value={newLeadName} onChange={(e) => setNewLeadName(e.target.value)} placeholder="Full name" className="col-span-3" />
+                    <Input id="name" value={newLeadName} onChange={(e) => setNewLeadName(e.target.value)} placeholder="Full name" className="col-span-3" disabled={loading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="company" className="text-right">Company*</Label>
-                    <Input id="company" value={newLeadCompany} onChange={(e) => setNewLeadCompany(e.target.value)} placeholder="Company name" className="col-span-3" />
+                    <Input id="company" value={newLeadCompany} onChange={(e) => setNewLeadCompany(e.target.value)} placeholder="Company name" className="col-span-3" disabled={loading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="email" className="text-right">Email*</Label>
-                    <Input id="email" type="email" value={newLeadEmail} onChange={(e) => setNewLeadEmail(e.target.value)} placeholder="Email address" className="col-span-3" />
+                    <Input id="email" type="email" value={newLeadEmail} onChange={(e) => setNewLeadEmail(e.target.value)} placeholder="Email address" className="col-span-3" disabled={loading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="phone" className="text-right">Phone</Label>
-                    <Input id="phone" value={newLeadPhone} onChange={(e) => setNewLeadPhone(e.target.value)} placeholder="Phone number" className="col-span-3" />
+                    <Input id="phone" value={newLeadPhone} onChange={(e) => setNewLeadPhone(e.target.value)} placeholder="Phone number" className="col-span-3" disabled={loading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status" className="text-right">Status</Label>
-                    <Select value={newLeadStatus} onValueChange={setNewLeadStatus}>
+                    <Select value={newLeadStatus} onValueChange={setNewLeadStatus} disabled={loading}>
                       <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
@@ -321,27 +356,27 @@ const Leads = ({ setGroups }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="value" className="text-right">Value ($)</Label>
-                    <Input id="value" type="number" value={newLeadValue} onChange={(e) => setNewLeadValue(e.target.value)} placeholder="Estimated value" className="col-span-3" />
+                    <Input id="value" type="number" value={newLeadValue} onChange={(e) => setNewLeadValue(e.target.value)} placeholder="Estimated value" className="col-span-3" disabled={loading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="address" className="text-right">Address</Label>
-                    <Input id="address" value={newLeadAddress} onChange={(e) => setNewLeadAddress(e.target.value)} placeholder="Company address" className="col-span-3" />
+                    <Input id="address" value={newLeadAddress} onChange={(e) => setNewLeadAddress(e.target.value)} placeholder="Company address" className="col-span-3" disabled={loading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="website" className="text-right">Website</Label>
-                    <Input id="website" value={newLeadWebsite} onChange={(e) => setNewLeadWebsite(e.target.value)} placeholder="Company website" className="col-span-3" />
+                    <Input id="website" value={newLeadWebsite} onChange={(e) => setNewLeadWebsite(e.target.value)} placeholder="Company website" className="col-span-3" disabled={loading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="description" className="text-right">Description</Label>
-                    <Input id="description" value={newLeadDescription} onChange={(e) => setNewLeadDescription(e.target.value)} placeholder="Short description" className="col-span-3" />
+                    <Input id="description" value={newLeadDescription} onChange={(e) => setNewLeadDescription(e.target.value)} placeholder="Short description" className="col-span-3" disabled={loading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="channel" className="text-right">Channel</Label>
-                    <Input id="channel" value={newLeadChannel} onChange={(e) => setNewLeadChannel(e.target.value)} placeholder="e.g., LinkedIn, Referral" className="col-span-3" />
+                    <Input id="channel" value={newLeadChannel} onChange={(e) => setNewLeadChannel(e.target.value)} placeholder="e.g., LinkedIn, Referral" className="col-span-3" disabled={loading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="companySize" className="text-right">Company Size</Label>
-                    <Select value={newLeadCompanySize} onValueChange={setNewLeadCompanySize}>
+                    <Select value={newLeadCompanySize} onValueChange={setNewLeadCompanySize} disabled={loading}>
                       <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select company size" />
                       </SelectTrigger>
@@ -356,11 +391,13 @@ const Leads = ({ setGroups }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="niche" className="text-right">Niche</Label>
-                    <Input id="niche" value={newLeadNiche} onChange={(e) => setNewLeadNiche(e.target.value)} placeholder="e.g., SaaS, Healthcare" className="col-span-3" />
+                    <Input id="niche" value={newLeadNiche} onChange={(e) => setNewLeadNiche(e.target.value)} placeholder="e.g., SaaS, Healthcare" className="col-span-3" disabled={loading} />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button onClick={handleAddLead}>Add Lead</Button>
+                  <Button onClick={handleAddLead} disabled={loading}>
+                    {loading ? "Adding..." : "Add Lead"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -401,14 +438,13 @@ const Leads = ({ setGroups }) => {
       </Card>
 
       <EntityDetailsSidebar
-  entity={selectedLead}
-  isOpen={isSidebarOpen}
-  onClose={() => setIsSidebarOpen(false)}
-  onUpdate={updateLead}
-  onDelete={handleDeleteLead}
-  entityType="lead"
-/>
-
+        entity={selectedLead}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        onUpdate={updateLead}
+        onDelete={handleDeleteLead}
+        entityType="lead"
+      />
 
       <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
         <DialogContent className="p-6 max-w-md bg-white dark:bg-gray-900 rounded-lg shadow-lg">
@@ -417,9 +453,32 @@ const Leads = ({ setGroups }) => {
           </DialogHeader>
           <p className="text-gray-700 dark:text-gray-300">Do you want to create a group for this CSV file?</p>
           <div className="flex justify-end space-x-3 mt-4">
-            <Button variant="outline" onClick={() => handleCsvUploadWithChoice(false)}>No</Button>
-            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleCsvUploadWithChoice(true)}>Yes</Button>
+            <Button variant="outline" onClick={() => handleCsvUploadWithChoice(false)} disabled={loading}>
+              {loading ? "Processing..." : "No"}
+            </Button>
+            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleCsvUploadWithChoice(true)} disabled={loading}>
+              {loading ? "Processing..." : "Yes"}
+            </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete all leads? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsDeleteAllDialogOpen(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAllLeads} disabled={loading}>
+              {loading ? "Deleting..." : "Delete All"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -14,7 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import axios from "axios";
 import { toast } from "@/components/ui/use-toast";
-import moment from "moment"; 
+import moment from "moment";
 
 const API_BASE_URL =
   import.meta.env.MODE === "development"
@@ -23,7 +23,7 @@ const API_BASE_URL =
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState([]); // Initial state is an empty array
   const navigate = useNavigate();
 
   // Fetch user data on mount
@@ -56,9 +56,13 @@ export default function Navbar() {
           withCredentials: true,
         });
         console.log("✅ Notifications fetched:", response.data);
-        setNotifications(response.data);
-        if (response.data.length > 0) {
-          response.data.forEach((notif) => {
+
+        // Ensure response.data is an array; fallback to empty array if not
+        const notificationsData = Array.isArray(response.data) ? response.data : [];
+        setNotifications(notificationsData);
+
+        if (notificationsData.length > 0) {
+          notificationsData.forEach((notif) => {
             console.log("📩 Showing toast for notification:", notif);
             toast({
               title: notif.type === "task" ? "New Task Assigned" : "New Lead Assigned",
@@ -70,6 +74,7 @@ export default function Navbar() {
         }
       } catch (error) {
         console.error("❌ Error fetching notifications:", error);
+        setNotifications([]); // Reset to empty array on error
       }
     };
 
@@ -101,7 +106,7 @@ export default function Navbar() {
       );
       console.log("✅ Notification marked as read, navigating to:", notif.type, notif.itemId);
       setNotifications((prev) => prev.filter((n) => n._id !== notif._id));
-    navigate("/profile");
+      navigate("/profile");
     } catch (error) {
       console.error("❌ Error marking notification as read:", error);
     }
