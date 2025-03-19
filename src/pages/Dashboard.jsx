@@ -202,26 +202,31 @@ const Dashboard = () => {
         </DashboardCard>
 
         <DashboardCard title="Recent Emails">
-          <div className="space-y-4">
-            {recentEmails.map((email, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 p-3 rounded-lg bg-brand-neon/5 border border-brand-neon/10"
-              >
-                <div className="h-8 w-8 rounded-full bg-brand-neon/20 flex items-center justify-center">
-                  <Users className="h-4 w-4 text-brand-neon" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{email.subject}</p>
-                  <p className="text-xs text-muted-foreground truncate">{email.from}</p>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {new Date(email.date).toLocaleTimeString()}
-                </div>
-              </div>
-            ))}
+  <div className="space-y-4">
+    {Array.isArray(recentEmails) && recentEmails.length > 0 ? (
+      recentEmails.map((email, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 p-3 rounded-lg bg-brand-neon/5 border border-brand-neon/10"
+        >
+          <div className="h-8 w-8 rounded-full bg-brand-neon/20 flex items-center justify-center">
+            <Users className="h-4 w-4 text-brand-neon" />
           </div>
-        </DashboardCard>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">{email.subject}</p>
+            <p className="text-xs text-muted-foreground truncate">{email.from}</p>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {new Date(email.date).toLocaleTimeString()}
+          </div>
+        </div>
+      ))
+    ) : (
+      <p className="text-sm text-muted-foreground">No recent emails found.</p>
+    )}
+  </div>
+</DashboardCard>
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
