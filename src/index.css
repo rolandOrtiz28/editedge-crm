@@ -215,3 +215,44 @@
 .nav-link-inactive .h-5 {
   color: white; /* Explicitly set icon color */
 }
+
+@layer utilities {
+  /* Gradient Background Animation */
+  .animate-gradient-bg {
+    background: linear-gradient(
+      45deg,
+      #f3f4f6,
+      #ffffff,
+      #f3f4f6,
+      #ffffff
+    );
+    background-size: 200% 200%;
+    animation: gradientShift 15s ease infinite;
+  }
+
+  /* Floating Animation for Feature Cards */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
