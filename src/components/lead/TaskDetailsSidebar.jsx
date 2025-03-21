@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+
+const API_BASE_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "https://crmapi.editedgemultimedia.com";
+
 const TaskDetailsSidebar = ({ task, isOpen, onClose, onUpdate, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState(task ? { ...task } : {});
@@ -26,10 +32,10 @@ const TaskDetailsSidebar = ({ task, isOpen, onClose, onUpdate, onDelete }) => {
     const fetchData = async () => {
       try {
         const [usersRes, leadsRes, contactsRes, dealsRes] = await Promise.all([
-          axios.get("http://localhost:3000/api/users"),
-          axios.get("http://localhost:3000/api/leads"),
-          axios.get("http://localhost:3000/api/contacts"),
-          axios.get("http://localhost:3000/api/deals"),
+          axios.get(`${API_BASE_URL}/api/users`),
+          axios.get(`${API_BASE_URL}/api/leads`),
+          axios.get(`${API_BASE_URL}/api/contacts`),
+          axios.get(`${API_BASE_URL}/api/deals`),
         ]);
 
         setAssignees(usersRes.data || []);
@@ -47,7 +53,7 @@ const TaskDetailsSidebar = ({ task, isOpen, onClose, onUpdate, onDelete }) => {
 
   const handleUpdate = async () => {
     try {
-      const response = await axios.put(`http://localhost:3000/api/tasks/${task._id}`, editedTask);
+      const response = await axios.put(`${API_BASE_URL}/api/tasks/${task._id}`, editedTask);
       onUpdate(response.data);
       setEditedTask(response.data);
       setSelectedRelatedModel(response.data.relatedModel || "");

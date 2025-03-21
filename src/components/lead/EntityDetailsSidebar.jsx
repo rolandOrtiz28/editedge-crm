@@ -18,6 +18,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
+const API_BASE_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "https://crmapi.editedgemultimedia.com";
+
 const statusOptions = ["New", "Contacted", "Qualified", "Proposal", "Negotiation", "Won"];
 
 const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, onAddNote, onAddReminder, entityType, users, assignee, setAssignee, onAssign }) => {
@@ -38,7 +43,7 @@ const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, onA
 
   const handleUpdate = () => {
     axios
-      .put(`http://localhost:3000/api/${entityType}s/${entity._id}`, editedEntity)
+      .put(`${API_BASE_URL}/api/${entityType}s/${entity._id}`, editedEntity)
       .then((response) => {
         onUpdate(response.data);
         toast({ title: `${entityType} Updated`, description: "Changes saved successfully." });
@@ -54,7 +59,7 @@ const EntityDetailsSidebar = ({ entity, isOpen, onClose, onUpdate, onDelete, onA
     const updatedEntity = { ...editedEntity, status: newStatus };
     setEditedEntity(updatedEntity);
     axios
-      .put(`http://localhost:3000/api/${entityType}s/${entity._id}`, updatedEntity)
+      .put(`${API_BASE_URL}/api/${entityType}s/${entity._id}`, updatedEntity)
       .then((response) => {
         onUpdate(response.data);
         toast({ title: "Status Updated", description: `${entityType} status changed to ${newStatus}.` });
