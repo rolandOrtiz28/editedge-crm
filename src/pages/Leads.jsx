@@ -1,6 +1,6 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Filter, Plus, Search, Target, Settings, Trash } from "lucide-react";
+import { ArrowUpRight, Filter, Plus, Search, Target, Settings, Trash, FolderOpen, Loader2 } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,11 +33,11 @@ const getStatusBadge = (status) => {
   const initialStatuses = ["New", "Contacted"];
 
   if (progressingStatuses.includes(status)) {
-    return "bg-brand-black text-white"; // Green for progressing statuses
+    return "bg-brand-black text-white";
   } else if (initialStatuses.includes(status)) {
-    return "bg-brand-black text-white"; // Blue for initial statuses
+    return "bg-brand-black text-white";
   } else {
-    return "bg-gray-500 text-white"; // Fallback for unexpected statuses
+    return "bg-gray-500 text-white";
   }
 };
 
@@ -72,10 +72,9 @@ const Leads = ({ setGroups }) => {
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState([]); // New state for list of users
-  const [selectedAssignee, setSelectedAssignee] = useState(null); // New state for assignee selection
+  const [users, setUsers] = useState([]);
+  const [selectedAssignee, setSelectedAssignee] = useState(null);
 
-  // Fetch users for assignee dropdown
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -118,7 +117,7 @@ const Leads = ({ setGroups }) => {
 
   const openSidebar = (lead) => {
     setSelectedLead(lead);
-    setSelectedAssignee(lead.assignee || null); // Set the current assignee when opening sidebar
+    setSelectedAssignee(lead.assignee || null);
     setIsSidebarOpen(true);
   };
 
@@ -147,7 +146,7 @@ const Leads = ({ setGroups }) => {
       value: parseInt(newLeadValue) || 0,
       notes: [],
       reminders: [],
-      assignee: selectedAssignee || null, // Include assignee if selected
+      assignee: selectedAssignee || null,
     };
 
     setLoading(true);
@@ -178,7 +177,7 @@ const Leads = ({ setGroups }) => {
     setNewLeadNiche("");
     setNewLeadStatus("New");
     setNewLeadValue("");
-    setSelectedAssignee(null); // Reset assignee
+    setSelectedAssignee(null);
   };
 
   const handleFileUpload = (event) => {
@@ -365,7 +364,7 @@ const Leads = ({ setGroups }) => {
       { key: "email", label: "Email" },
       { key: "phone", label: "Phone" },
       { key: "status", label: "Status" },
-      { key: "assignee", label: "Assignee" }, // Add assignee column
+      { key: "assignee", label: "Assignee" },
     ],
     statusOptions,
     getStatusBadge,
@@ -380,13 +379,14 @@ const Leads = ({ setGroups }) => {
   };
 
   return (
-    <div className="p-7">
+    <div className="p-4 sm:p-7">
       <PageHeader
         title="Leads"
         subtitle="Track and manage your sales leads in one place."
         icon={Target}
       />
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+      
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 w-full">
         <div className="relative w-full md:w-72">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -396,6 +396,7 @@ const Leads = ({ setGroups }) => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        
         <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
           <Select value={selectedGroup} onValueChange={setSelectedGroup}>
             <SelectTrigger className="w-full md:w-48">
@@ -408,6 +409,7 @@ const Leads = ({ setGroups }) => {
               ))}
             </SelectContent>
           </Select>
+          
           <div className="flex gap-2">
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger className="w-full md:w-auto">
@@ -420,6 +422,7 @@ const Leads = ({ setGroups }) => {
                 ))}
               </SelectContent>
             </Select>
+            
             <input
               type="file"
               accept=".csv"
@@ -435,6 +438,7 @@ const Leads = ({ setGroups }) => {
             >
               <img src="/csv.svg" alt="CSV Icon" className="h-5 w-5" /> Upload CSV
             </Button>
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="p-2" disabled={loading}>
@@ -453,211 +457,234 @@ const Leads = ({ setGroups }) => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogContent className="sm:max-w-[525px]">
-                <DialogHeader>
-                  <DialogTitle>Add New Lead</DialogTitle>
-                  <DialogDescription>Enter the details of your new sales lead.</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">Name*</Label>
-                    <Input
-                      id="name"
-                      value={newLeadName}
-                      onChange={(e) => setNewLeadName(e.target.value)}
-                      placeholder="Full name"
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="company" className="text-right">Company*</Label>
-                    <Input
-                      id="company"
-                      value={newLeadCompany}
-                      onChange={(e) => setNewLeadCompany(e.target.value)}
-                      placeholder="Company name"
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">Email*</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={newLeadEmail}
-                      onChange={(e) => setNewLeadEmail(e.target.value)}
-                      placeholder="Email address"
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="phone" className="text-right">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={newLeadPhone}
-                      onChange={(e) => setNewLeadPhone(e.target.value)}
-                      placeholder="Phone number"
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="status" className="text-right">Status</Label>
-                    <Select value={newLeadStatus} onValueChange={setNewLeadStatus} disabled={loading}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map(status => (
-                          <SelectItem key={status} value={status}>{status}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="value" className="text-right">Value ($)</Label>
-                    <Input
-                      id="value"
-                      type="number"
-                      value={newLeadValue}
-                      onChange={(e) => setNewLeadValue(e.target.value)}
-                      placeholder="Estimated value"
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="assignee" className="text-right">Assignee</Label>
-                    <Select value={selectedAssignee} onValueChange={setSelectedAssignee} disabled={loading}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select assignee" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={null}>Unassigned</SelectItem>
-                        {users.map(user => (
-                          <SelectItem key={user._id} value={user._id}>{user.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="address" className="text-right">Address</Label>
-                    <Input
-                      id="address"
-                      value={newLeadAddress}
-                      onChange={(e) => setNewLeadAddress(e.target.value)}
-                      placeholder="Company address"
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="website" className="text-right">Website</Label>
-                    <Input
-                      id="website"
-                      value={newLeadWebsite}
-                      onChange={(e) => setNewLeadWebsite(e.target.value)}
-                      placeholder="Company website"
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="description" className="text-right">Description</Label>
-                    <Input
-                      id="description"
-                      value={newLeadDescription}
-                      onChange={(e) => setNewLeadDescription(e.target.value)}
-                      placeholder="Short description"
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="channel" className="text-right">Channel</Label>
-                    <Input
-                      id="channel"
-                      value={newLeadChannel}
-                      onChange={(e) => setNewLeadChannel(e.target.value)}
-                      placeholder="e.g., LinkedIn, Referral"
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="companySize" className="text-right">Company Size</Label>
-                    <Select value={newLeadCompanySize} onValueChange={setNewLeadCompanySize} disabled={loading}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select company size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1-10">1-10</SelectItem>
-                        <SelectItem value="11-50">11-50</SelectItem>
-                        <SelectItem value="51-200">51-200</SelectItem>
-                        <SelectItem value="201-500">201-500</SelectItem>
-                        <SelectItem value="500+">500+</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="niche" className="text-right">Niche</Label>
-                    <Input
-                      id="niche"
-                      value={newLeadNiche}
-                      onChange={(e) => setNewLeadNiche(e.target.value)}
-                      placeholder="e.g., SaaS, Healthcare"
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={handleAddLead} disabled={loading}>
-                    {loading ? "Adding..." : "Add Lead"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </div>
         </div>
       </div>
 
-      <ViewSwitcher
-        view={view}
-        setView={setView}
-        data={filteredLeads || []}
-        viewConfig={viewConfig}
-        onItemClick={openSidebar}
-        onUpdateStatus={handleUpdateLeadStatus}
-        onAssignLead={handleAssignLead} // Pass assign handler
-      />
+      {filteredLeads.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <FolderOpen className="h-12 w-12 text-gray-400 mb-4" />
+          <p className="text-gray-500 mb-4">No leads found</p>
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Add New Lead
+          </Button>
+        </div>
+      ) : (
+        <>
+          <ViewSwitcher
+            view={view}
+            setView={setView}
+            data={filteredLeads || []}
+            viewConfig={viewConfig}
+            onItemClick={openSidebar}
+            onUpdateStatus={handleUpdateLeadStatus}
+            onAssignLead={handleAssignLead}
+          />
 
-      <Card className="mt-6 animate-fade-in">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-medium mb-4">Lead Value by Status</h3>
-          <div className="space-y-4">
-            {statusOptions.map(status => {
-              const totalValue = (selectedGroup === "all" ? leads : filteredLeads)
-                .filter(lead => lead.status === status)
-                .reduce((sum, lead) => sum + (lead.value || 0), 0);
-              const percentage = Math.round((totalValue / 200000) * 100);
-              return (
-                <div key={status} className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">{status}</span>
-                    <span className="text-sm text-muted-foreground">${totalValue.toLocaleString()}</span>
-                  </div>
-                  <Progress value={percentage} className={`h-2 ${getStatusBadge(status)}`} />
-                </div>
-              );
-            })}
+          <Card className="mt-6 animate-fade-in">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-medium mb-4">Lead Value by Status</h3>
+              <div className="space-y-4">
+                {statusOptions.map(status => {
+                  const totalValue = (selectedGroup === "all" ? leads : filteredLeads)
+                    .filter(lead => lead.status === status)
+                    .reduce((sum, lead) => sum + (lead.value || 0), 0);
+                  const percentage = Math.round((totalValue / 200000) * 100);
+                  return (
+                    <div key={status} className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">{status}</span>
+                        <span className="text-sm text-muted-foreground">${totalValue.toLocaleString()}</span>
+                      </div>
+                      <Progress value={percentage} className={`h-2 ${getStatusBadge(status)}`} />
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+  <DialogContent className="w-full max-w-[95vw] sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle>Add New Lead</DialogTitle>
+      <DialogDescription>Enter the details of your new sales lead.</DialogDescription>
+    </DialogHeader>
+    <div className="grid gap-4 py-4">
+      {/* Required Fields Section */}
+      <div className="space-y-4">
+        <h4 className="text-sm font-medium">Required Information</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name*</Label>
+            <Input
+              id="name"
+              value={newLeadName}
+              onChange={(e) => setNewLeadName(e.target.value)}
+              placeholder="Full name"
+              disabled={loading}
+            />
           </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-2">
+            <Label htmlFor="company">Company*</Label>
+            <Input
+              id="company"
+              value={newLeadCompany}
+              onChange={(e) => setNewLeadCompany(e.target.value)}
+              placeholder="Company name"
+              disabled={loading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email*</Label>
+            <Input
+              id="email"
+              type="email"
+              value={newLeadEmail}
+              onChange={(e) => setNewLeadEmail(e.target.value)}
+              placeholder="Email address"
+              disabled={loading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone</Label>
+            <Input
+              id="phone"
+              value={newLeadPhone}
+              onChange={(e) => setNewLeadPhone(e.target.value)}
+              placeholder="Phone number"
+              disabled={loading}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Status and Value Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="status">Status</Label>
+          <Select value={newLeadStatus} onValueChange={setNewLeadStatus} disabled={loading}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map(status => (
+                <SelectItem key={status} value={status}>{status}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="value">Value ($)</Label>
+          <Input
+            id="value"
+            type="number"
+            value={newLeadValue}
+            onChange={(e) => setNewLeadValue(e.target.value)}
+            placeholder="Estimated value"
+            disabled={loading}
+          />
+        </div>
+      </div>
+
+      {/* Assignee Section */}
+      <div className="space-y-2">
+        <Label htmlFor="assignee">Assignee</Label>
+        <Select value={selectedAssignee} onValueChange={setSelectedAssignee} disabled={loading}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select assignee" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={null}>Unassigned</SelectItem>
+            {users.map(user => (
+              <SelectItem key={user._id} value={user._id}>{user.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Additional Information Section */}
+      <div className="space-y-4">
+        <h4 className="text-sm font-medium">Additional Information</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="address">Address</Label>
+            <Input
+              id="address"
+              value={newLeadAddress}
+              onChange={(e) => setNewLeadAddress(e.target.value)}
+              placeholder="Company address"
+              disabled={loading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="website">Website</Label>
+            <Input
+              id="website"
+              value={newLeadWebsite}
+              onChange={(e) => setNewLeadWebsite(e.target.value)}
+              placeholder="Company website"
+              disabled={loading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="channel">Channel</Label>
+            <Input
+              id="channel"
+              value={newLeadChannel}
+              onChange={(e) => setNewLeadChannel(e.target.value)}
+              placeholder="e.g., LinkedIn, Referral"
+              disabled={loading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="companySize">Company Size</Label>
+            <Select value={newLeadCompanySize} onValueChange={setNewLeadCompanySize} disabled={loading}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select company size" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1-10">1-10</SelectItem>
+                <SelectItem value="11-50">11-50</SelectItem>
+                <SelectItem value="51-200">51-200</SelectItem>
+                <SelectItem value="201-500">201-500</SelectItem>
+                <SelectItem value="500+">500+</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="description">Description</Label>
+          <Input
+            id="description"
+            value={newLeadDescription}
+            onChange={(e) => setNewLeadDescription(e.target.value)}
+            placeholder="Short description"
+            disabled={loading}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="niche">Niche</Label>
+          <Input
+            id="niche"
+            value={newLeadNiche}
+            onChange={(e) => setNewLeadNiche(e.target.value)}
+            placeholder="e.g., SaaS, Healthcare"
+            disabled={loading}
+          />
+        </div>
+      </div>
+    </div>
+    <DialogFooter>
+      <Button onClick={handleAddLead} disabled={loading} className="w-full sm:w-auto">
+        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+        {loading ? "Adding..." : "Add Lead"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
       <EntityDetailsSidebar
         entity={selectedLead}
@@ -667,10 +694,10 @@ const Leads = ({ setGroups }) => {
         onDelete={handleDeleteLead}
         onAddNote={handleAddNote}
         onAddReminder={handleAddReminder}
-        onAssign={handleAssignLead} // Pass assign handler to sidebar
+        onAssign={handleAssignLead}
         assignee={selectedAssignee}
         setAssignee={setSelectedAssignee}
-        users={users} // Pass users for assignee selection
+        users={users}
         entityType="lead"
       />
 
@@ -690,6 +717,7 @@ const Leads = ({ setGroups }) => {
               onClick={() => handleCsvUploadWithChoice(false)}
               disabled={loading}
             >
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {loading ? "Processing..." : "No"}
             </Button>
             <Button
@@ -697,6 +725,7 @@ const Leads = ({ setGroups }) => {
               onClick={() => handleCsvUploadWithChoice(true)}
               disabled={loading}
             >
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {loading ? "Processing..." : "Yes"}
             </Button>
           </div>
@@ -724,6 +753,7 @@ const Leads = ({ setGroups }) => {
               onClick={handleDeleteAllLeads}
               disabled={loading}
             >
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {loading ? "Deleting..." : "Delete All"}
             </Button>
           </DialogFooter>
